@@ -1,0 +1,155 @@
+
+ : 
+📍
+📞
+08
+100% SECURE
+1,024
+12
+130K
+140K
+1,450 units
+226K
+245
+3 VISITS
+56
+65% Capacity
+68K
+8,200 units
+85K
+86.4%
+Active Jobs
+Active safety boundary
+Active Sector
+Aggregate Collected
+AGGREGATE PAYLOAD DUE
+AGGREGATE VERIFIABLE VOUCHERS:
+Allocated Cash Received:
+AMIC - Main Node
+// Analytical Core & Systems Overview
+Assigned route GPS maps
+Bank Transfers Vouchers:
+Billed To / فاتورة إلى
+Billing Console
+Bio-Receipt Confirmed
+Bitvera ERP IT Solution
+Bitvera PDF Server Ready
+// Booking & Order Analysis
+Capture physically printed payment receipts or electronic transaction confirmation.
+Cash Pools
+Central Analytical Engine
+Central Hash Stamp Signature
+Closing
+Create Order
+Credit Notes Issued:
+CUS-{visit.customer.id.replace('CUS-', '')}
+Daily Closing Reports
+Daily Lockout Cycle Confirmed
+Date / التاريخ
+DESCRIPTION
+Description / الوصف
+// Diagnostic Attachment Proof
+Disp.
+// Dispatch Load
+// End-of-Day Ledger Vault
+ERP Sync
+Estimated VAT (15%):
+// Financial Liquidity
+Fixed
+Fri
+FY 2026
+Generate Sales Invoice
+GPS Tagged
+ID Linked
+{idStr}.pdf
+Include Payment (POS - Cash Sale)
+IN TRANSIT
+Inventory dispatch list
+Invoice Credits:
+Invoice Net Sum
+Invoice No. / رقم الفاتورة
+Ledger ID
+LIVE
+// Live Inventory Levels
+LOADED
+Loading Requests
+Low Limit Items
+Lubricants (A)
+MAIN WAREHOUSE
+May
+Mon
+Monthly Sales Trend
+No loads under {activeTab} status index.
+No Stock
+No telemetry logs found in this module.
+Operator Task
+// Order Configuration
+Order Pipeline
+Other Filters
+Outstanding
+Paid Invoices
+Paid Invoices Node:
+Preloaded stock requests
+Qty / الكمية
+Ramy Ahmed
+ramy.ajial@gmail.com
+READY
+Record payment details immediately upon delivery
+Register Customer Matrix
+Reports Matrix
+{req.items} Units payload
+// Reset Credentials
+Returns Processed:
+Riyadh North Sector • {visits.length} Visits Assigned
+Riyadh-North v3
+Route Sync Active
+Run daily reconciliation
+Sadus Stock Riyadh
+Sales by Item
+Sales Invoicing
+// Sales Transaction Register
+Scan ID Card
+Scan Receipt Bill / camera raw
+Security System
+Settings & System Core
+Simplified Tax Invoice
+Site Photo
+SKU BLOCK
+SKU: {p.sku}
+// Split Payment Allocation
+Standard Warehouse Unit
+START QTY
+Stock Procurement Logistics
+// Stock Rotation Balance
+Stock Visibility
+Subtotal / الإجمالي الخاضع:
+Terminal State Lockout
+Terminal synced with Riyadh HQ. Monitoring sales dispatch.
+Thu
+Today's Route Schedule
+Total ({activeCurrency.code}) / الإجمالي
+Total Loadout
+Total Opening Volume:
+Total Receivables
+Total Subtotal:
+Total Transaction
+Transaction Matrix
+Transmitter distance
+Tue
+Unbalanced Difference
+Unit Price / السعر ({activeCurrency.code})
+Van Inventory Stock
+Van Payload Stock
+Van Status
+Van Stock
+VAT (15%) / الضريبة
+VAT (15%) / ضريبة القيمة مضافة:
+{visit.geofenceM} meters
+Visit Plan
+Wed
+Weekly Disp. ({activeCurrency.code})
+Welcome, {userName}
+● ZATCA Compliant Simplified Invoice
+بيتفيرا لنظم المعلومات - فاتورة معتمدة إلكترونياً من هيئة الزكاة والضريبة والجمارك رقم {idStr.replace('SINV-', '')}
+حلول بيتفيرا لتقنية المعلومات
+فاتورة ضريبية مبسطة

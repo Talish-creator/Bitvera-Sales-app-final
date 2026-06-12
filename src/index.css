@@ -1,0 +1,428 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght=300;400;500;600;700&family=JetBrains+Mono:wght=400;500;600;700&family=Inter:wght=300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-primary-indigo: #6366f1;
+  --color-accent-emerald: #10b981;
+}
+
+/* Base Body Design: Choose background-color and image based on active theme class */
+body {
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.theme-dark {
+  background-color: #020204;
+  color: #f8fafc;
+  background-image: 
+    radial-gradient(circle at 12% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 85% 75%, rgba(16, 185, 129, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(10, 11, 24, 0.95) 0%, #020204 100%);
+  background-attachment: fixed;
+}
+
+body.theme-light {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  background-image: none !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.4);
+}
+
+/* ==========================================================================
+   DARK THEME DECLARATIONS (LEAVE UNTOUCHED AS ORIGINAL)
+   ========================================================================== */
+
+/* Glassmorphism Card System Overrides for Dark Mode */
+.theme-dark .bg-white, 
+.theme-dark [class*="bg-white"] {
+  background-color: rgba(9, 10, 20, 0.65) !important;
+  backdrop-filter: blur(16px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  color: #f1f5f9 !important;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.5), 
+    inset 0 1px 1px rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Card Hover States in Dark Mode */
+.theme-dark .bg-white.hover\:shadow-\[0_4px_12px_rgba\(0\,32\,69\,0\.05\)\]:hover,
+.theme-dark .hover\:shadow-md:hover {
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  box-shadow: 0 0 25px rgba(16, 185, 129, 0.15) !important;
+  background-color: rgba(12, 14, 28, 0.8) !important;
+}
+
+/* Dark Input Fields & Selectors Override in Dark Mode */
+.theme-dark input, .theme-dark select, .theme-dark textarea {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  transition: all 0.2s ease !important;
+}
+
+.theme-dark input:focus, .theme-dark select:focus, .theme-dark textarea:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4) !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  outline: none !important;
+}
+
+.theme-dark select option {
+  background-color: #090a14 !important;
+  color: #ffffff !important;
+}
+
+/* Accent Badge Overrides for Dark Mode High Contrast */
+.theme-dark .bg-\[\#9ff5c1\], 
+.theme-dark [class*="bg-[#9ff5c1]"] {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  color: #10b981 !important;
+}
+
+.theme-dark .text-\[\#002111\], 
+.theme-dark [class*="text-[#002111]"] {
+  color: #10b981 !important;
+}
+
+.theme-dark .bg-\[\#ffdeaa\], 
+.theme-dark [class*="bg-[#ffdeaa]"] {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+  color: #f59e0b !important;
+}
+
+.theme-dark .text-\[\#5f4100\], 
+.theme-dark [class*="text-[#5f4100]"] {
+  color: #fbbf24 !important;
+}
+
+/* Utility slate bg resets in Dark Mode */
+.theme-dark .bg-slate-50, 
+.theme-dark .bg-slate-100, 
+.theme-dark .bg-slate-50\/50,
+.theme-dark .bg-slate-100\/50 {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.theme-dark .border-slate-200, 
+.theme-dark .border-slate-100, 
+.theme-dark .border-slate-300 {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Header Action Details Override */
+.theme-dark .bg-\[\#1a365d\] {
+  background-color: rgba(99, 102, 241, 0.1) !important;
+  border: 1px solid rgba(99, 102, 241, 0.3) !important;
+}
+
+.theme-dark .text-\[\#9ff5c1\] {
+  color: #10b981 !important;
+}
+
+/* Navy Text Forcing in Dark Mode */
+.theme-dark .text-\[\#002045\], 
+.theme-dark .text-slate-900, 
+.theme-dark .text-slate-800, 
+.theme-dark .text-blue-900,
+.theme-dark .text-\[\#0d1c2e\],
+.theme-dark .text-\[\#1a365d\] {
+  color: #ffffff !important;
+}
+
+.theme-dark .text-slate-500, 
+.theme-dark .text-slate-600 {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.theme-dark .text-slate-400 {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Specific item highlight circles */
+.theme-dark .bg-\[\#e5eeff\] {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  color: #a5b4fc !important;
+}
+
+/* Glow Primary Button Effects in Dark Mode */
+.theme-dark .bg-\[\#002045\]:not(span), 
+.theme-dark button[class*="bg-[#002045]"],
+.theme-dark input[type="submit"] {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 20px rgba(79, 70, 229, 0.35) !important;
+}
+
+.theme-dark .bg-\[\#002045\]:hover:not(span), 
+.theme-dark button[class*="bg-[#002045]"]:hover {
+  background-color: #6366f1 !important;
+  box-shadow: 0 4px 25px rgba(99, 102, 241, 0.55), 0 0 10px rgba(99, 102, 241, 0.2) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* SVGs and charts alignment */
+.theme-dark circle[stroke="#d4e4fc"] {
+  stroke: rgba(255, 255, 255, 0.1) !important;
+}
+
+.theme-dark circle[stroke="#1a365d"] {
+  stroke: #10b981 !important;
+}
+
+
+/* ==========================================================================
+   REDESIGNED LIGHT THEME OVERRIDES (CRISP WHITE + CYAN/TEAL + BLACK FONTS)
+   ========================================================================== */
+
+/* Change all containers, backgrounds, panels, lists and wrappers to elegant pure white */
+.theme-light .bg-white, 
+.theme-light [class*="bg-white"],
+.theme-light .bg-slate-900,
+.theme-light [class*="bg-slate-900"],
+.theme-light [class*="bg-slate-950"],
+.theme-light [class*="bg-slate-800"],
+.theme-light [class*="bg-slate-900\/"],
+.theme-light [class*="bg-slate-950\/"],
+.theme-light [class*="bg-slate-800\/"] {
+  background-color: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(13, 148, 136, 0.15) !important; /* Soft Teal/Cyan thin outline border */
+  color: #000000 !important; /* Black font */
+  box-shadow: 0 6px 18px rgba(13, 148, 136, 0.04) !important;
+}
+
+/* Force outer body container blocks and backdrops to pure white */
+.theme-light .min-h-screen,
+.theme-light main,
+.theme-light header {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Light Card Design Hover State */
+.theme-light .bg-white.hover\:shadow-\[0_4px_12px_rgba\(0\,32\,69\,0\.05\)\]:hover,
+.theme-light .hover\:shadow-md:hover,
+.theme-light [class*="bg-white"]:hover {
+  border-color: rgba(13, 148, 136, 0.45) !important;
+  box-shadow: 0 0 16px rgba(13, 148, 136, 0.12) !important;
+  background-color: #f0fdfa !important; /* light soft cyan/teal background glow tint */
+}
+
+/* Pure Black Fonts for standard texts and hardcoded labels */
+.theme-light .text-white,
+.theme-light [class*="text-white"],
+.theme-light .text-slate-900,
+.theme-light .text-slate-800,
+.theme-light .text-\[\#002045\],
+.theme-light [class*="text-[#002045]"],
+.theme-light .text-slate-700,
+.theme-light .text-slate-950,
+.theme-light .text-blue-900,
+.theme-light .text-\[\#0d1c2e\] {
+  color: #000000 !important; /* Pure Black text for elite reading priority */
+}
+
+/* Cyan/Teal Fonts for titles, headers, state tags, and secondary indicators */
+.theme-light h1,
+.theme-light h2,
+.theme-light h3,
+.theme-light h4,
+.theme-light h5,
+.theme-light h6,
+.theme-light .font-bold,
+.theme-light .font-extrabold {
+  color: #0f766e !important; /* Deep Cyan/Teal main headings */
+}
+
+/* Sub-labels and decorative indicators map to Teal/Cyan */
+.theme-light .text-slate-300,
+.theme-light .text-slate-400,
+.theme-light .text-slate-500,
+.theme-light .text-slate-650,
+.theme-light [class*="text-slate-400"],
+.theme-light [class*="text-slate-350"] {
+  color: #0d9488 !important; /* Clean Teal font */
+}
+
+/* Slate descriptions map to a dark teal-black */
+.theme-light .text-slate-600 {
+  color: #115e59 !important; /* Rich Teal-Black */
+}
+
+/* Any indigo status label maps to readable Cyan/Teal font */
+.theme-light .text-indigo-400,
+.theme-light .text-indigo-500,
+.theme-light .text-indigo-300,
+.theme-light .text-indigo-600,
+.theme-light .text-emerald-400,
+.theme-light .text-emerald-500,
+.theme-light .text-emerald-600,
+.theme-light .text-cyan-400,
+.theme-light .text-cyan-500 {
+  color: #0d9488 !important; /* Cyan-Teal accent highlight font */
+}
+
+/* Non-destructive alert states stay highly legible red */
+.theme-light .text-rose-400,
+.theme-light .text-rose-500,
+.theme-light .text-rose-600 {
+  color: #b91c1c !important; 
+}
+
+/* Utility backgrounds and state badges override */
+.theme-light .bg-emerald-500\/20,
+.theme-light .bg-emerald-500\/25,
+.theme-light .bg-emerald-500\/10,
+.theme-light .bg-indigo-500\/10,
+.theme-light .bg-teal-500\/10,
+.theme-light .bg-slate-900\/60,
+.theme-light .bg-\[\#9ff5c1\],
+.theme-light [class*="bg-[#9ff5c1]"] {
+  background-color: rgba(13, 148, 136, 0.08) !important;
+  border: 1px solid rgba(13, 148, 136, 0.3) !important;
+  color: #0f766e !important; /* High contrast Dark Teal font */
+}
+
+/* Text inside dynamic tags mapped to high contrast green/teal */
+.theme-light .text-\[\#002111\],
+.theme-light .text-emerald-300 {
+  color: #0f766e !important;
+}
+
+/* Orange badges map to warm light backgrounds */
+.theme-light .bg-\[\#ffdeaa\],
+.theme-light [class*="bg-[#ffdeaa]"] {
+  background-color: rgba(217, 119, 6, 0.08) !important;
+  border: 1px solid rgba(217, 119, 6, 0.25) !important;
+  color: #b45309 !important;
+}
+
+.theme-light .text-\[\#5f4100\] {
+  color: #b45309 !important;
+}
+
+/* Light Mode Input Fields & Selectors Override */
+.theme-light input, 
+.theme-light select, 
+.theme-light textarea {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(13, 148, 136, 0.3) !important;
+  color: #000000 !important;
+  transition: all 0.2s ease !important;
+}
+
+.theme-light input::placeholder, 
+.theme-light textarea::placeholder {
+  color: #64748b !important;
+}
+
+.theme-light input:focus, 
+.theme-light select:focus, 
+.theme-light textarea:focus {
+  border-color: #0d9488 !important;
+  box-shadow: 0 0 10px rgba(13, 148, 136, 0.25) !important;
+  outline: none !important;
+}
+
+.theme-light select option {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Specific item highlight circles */
+.theme-light .bg-\[\#e5eeff\] {
+  background-color: rgba(13, 148, 136, 0.08) !important;
+  color: #0f766e !important;
+}
+
+/* Glow Primary Button Effects mapping to Accent Teal */
+.theme-light .bg-\[\#002045\]:not(span), 
+.theme-light button[class*="bg-[#002045]"],
+.theme-light input[type="submit"],
+.theme-light .bg-gradient-to-r.from-indigo-600.to-emerald-600,
+.theme-light .bg-gradient-to-br.from-indigo-500.to-emerald-500 {
+  background: #0d9488 !important; /* Unified solid Cyan/Teal primary background */
+  color: #ffffff !important; /* elegant white text */
+  border: 1px solid #0f766e !important;
+  box-shadow: 0 4px 15px rgba(13, 148, 136, 0.25) !important;
+  text-shadow: none !important;
+}
+
+.theme-light .bg-\[\#002045\]:hover:not(span), 
+.theme-light button[class*="bg-[#002045]"]:hover,
+.theme-light input[type="submit"]:hover,
+.theme-light .bg-gradient-to-r.from-indigo-600.to-emerald-600:hover {
+  background: #0f766e !important; /* Slightly darker teal on hover */
+  box-shadow: 0 4px 15px rgba(13, 148, 136, 0.4) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* SVGs and charts alignment in Light Mode */
+.theme-light circle[stroke="#d4e4fc"] {
+  stroke: rgba(13, 148, 136, 0.15) !important;
+}
+
+.theme-light circle[stroke="#1a365d"] {
+  stroke: #0d9488 !important;
+}
+
+.theme-light svg, 
+.theme-light .lucide {
+  color: #0d9488 !important; /* Beautiful pure Teal for line icons */
+}
+
+/* Border slate line mapping in Light Mode */
+.theme-light .border-slate-200, 
+.theme-light .border-slate-100, 
+.theme-light .border-slate-300,
+.theme-light .border-white\/5,
+.theme-light .border-white\/10,
+.theme-light .border-white\/15,
+.theme-light .border-white\/20,
+.theme-light .border-white\/25 {
+  border-color: rgba(13, 148, 136, 0.15) !important;
+}
+
+/* Utility slate bg resets in Light Mode */
+.theme-light .bg-slate-50, 
+.theme-light .bg-slate-100, 
+.theme-light .bg-slate-50\/50,
+.theme-light .bg-slate-100\/50,
+.theme-light .bg-slate-900\/20,
+.theme-light .bg-slate-900\/30,
+.theme-light .bg-slate-900\/10 {
+  background-color: rgba(13, 148, 136, 0.05) !important;
+  border-color: rgba(13, 148, 136, 0.12) !important;
+}
+
+/* Header action details background in Light Mode */
+.theme-light .bg-\[\#1a365d\] {
+  background-color: rgba(13, 148, 136, 0.08) !important;
+  border: 1px solid rgba(13, 148, 136, 0.2) !important;
+}

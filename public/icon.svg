@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0f19" />
+      <stop offset="50%" stop-color="#020617" />
+      <stop offset="100%" stop-color="#1e1b4b" />
+    </linearGradient>
+
+    <!-- Emerald Glow Gradient -->
+    <linearGradient id="emerald-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+
+    <!-- Indigo Glow Gradient -->
+    <linearGradient id="indigo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+
+    <!-- Subtle Shadow Filter for 3D appearance -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.65" />
+    </filter>
+
+    <!-- Soft Glow Filter -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- iOS-style Squircle Rounded Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg-grad)" stroke="rgba(255,255,255,0.06)" stroke-width="4" />
+
+  <!-- App Graphic Container with drop shadow -->
+  <g filter="url(#shadow)" transform="translate(0, -10)">
+    <!-- Tech Network Nodes / Radial Lines in Background -->
+    <circle cx="256" cy="266" r="160" fill="none" stroke="rgba(99, 102, 241, 0.06)" stroke-width="1.5" />
+    <circle cx="256" cy="266" r="220" fill="none" stroke="rgba(16, 185, 129, 0.04)" stroke-width="1" />
+    <path d="M 96 266 L 416 266" stroke="rgba(255, 255, 255, 0.03)" stroke-width="1.5" stroke-dasharray="8 8" />
+    <path d="M 256 106 L 256 426" stroke="rgba(255, 255, 255, 0.03)" stroke-width="1.5" stroke-dasharray="8 8" />
+
+    <!-- Stylized Logistic Route Loop (Van Speed Path) -->
+    <path d="M 160 380 Q 256 430 352 380 T 160 380" fill="none" stroke="rgba(16, 185, 129, 0.15)" stroke-width="6" stroke-linecap="round" filter="url(#glow)" />
+
+    <!-- Glowing Vector 'B' Monogram (Lower Stem & Loop 1) -->
+    <path d="M 180 140 C 180 130 190 120 200 120 L 290 120 C 340 120 370 150 370 195 C 370 230 350 255 315 262 C 360 270 380 300 380 345 C 380 395 340 420 290 420 L 200 420 C 190 420 180 410 180 400 Z" fill="none" stroke="url(#indigo-grad)" stroke-width="32" stroke-linejoin="round" stroke-linecap="round" />
+
+    <!-- Interlocking Dynamic Velocity Arrow ('V') cut within 'B' representing logistics delivery -->
+    <path d="M 230 180 L 290 262 L 350 180" fill="none" stroke="url(#emerald-grad)" stroke-width="24" stroke-linejoin="round" stroke-linecap="round" filter="url(#glow)" />
+    
+    <!-- Speed indicator nodes -->
+    <circle cx="290" cy="262" r="10" fill="#34d399" filter="url(#glow)" />
+    <circle cx="230" cy="180" r="6" fill="#818cf8" />
+    <circle cx="350" cy="180" r="6" fill="#818cf8" />
+
+    <!-- Inner Core Hub Ring -->
+    <circle cx="256" cy="266" r="32" fill="#020617" stroke="rgba(255,255,255,0.1)" stroke-width="4" />
+    <polygon points="250,254 268,266 250,278" fill="#10b981" />
+  </g>
+</svg>

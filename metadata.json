@@ -1,0 +1,6 @@
+{
+  "name": "Bitvera Sales",
+  "description": "Bitvera Sales Enterprise Management system featuring Van Stock inventory tracking, real-time routing, customer management, invoicing, and performance diagnostics.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
