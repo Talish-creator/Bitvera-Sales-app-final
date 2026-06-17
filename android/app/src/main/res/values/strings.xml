@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Bitvera Sales</string>
+    <string name="title_activity_main">Bitvera Sales</string>
+    <string name="package_name">com.bitvera.salesapp</string>
+    <string name="custom_url_scheme">com.bitvera.salesapp</string>
+</resources>

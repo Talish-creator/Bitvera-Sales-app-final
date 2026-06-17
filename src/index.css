@@ -5,8 +5,8 @@
   --font-sans: "Space Grotesk", "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
   
-  --color-primary-indigo: #6366f1;
-  --color-accent-emerald: #10b981;
+  --color-primary-indigo: #1e40af;
+  --color-accent-emerald: #06b6d4;
 }
 
 /* Base Body Design: Choose background-color and image based on active theme class */
@@ -14,14 +14,26 @@ body {
   font-family: "Space Grotesk", "Inter", sans-serif;
   overflow-x: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;
+  
+  /* Native App Feel Enhancements */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Allow text selection in inputs and textareas */
+input, textarea {
+  user-select: auto;
+  -webkit-user-select: auto;
 }
 
 body.theme-dark {
   background-color: #020204;
   color: #f8fafc;
   background-image: 
-    radial-gradient(circle at 12% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 45%),
-    radial-gradient(circle at 85% 75%, rgba(16, 185, 129, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 12% 15%, rgba(30, 64, 175, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 85% 75%, rgba(6, 182, 212, 0.08) 0%, transparent 45%),
     radial-gradient(circle at 50% 50%, rgba(10, 11, 24, 0.95) 0%, #020204 100%);
   background-attachment: fixed;
 }
@@ -45,7 +57,7 @@ body.theme-light {
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.4);
+  background: rgba(6, 182, 212, 0.4);
 }
 
 /* ==========================================================================
@@ -68,8 +80,8 @@ body.theme-light {
 /* Card Hover States in Dark Mode */
 .theme-dark .bg-white.hover\:shadow-\[0_4px_12px_rgba\(0\,32\,69\,0\.05\)\]:hover,
 .theme-dark .hover\:shadow-md:hover {
-  border-color: rgba(16, 185, 129, 0.3) !important;
-  box-shadow: 0 0 25px rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(6, 182, 212, 0.3) !important;
+  box-shadow: 0 0 25px rgba(6, 182, 212, 0.15) !important;
   background-color: rgba(12, 14, 28, 0.8) !important;
 }
 
@@ -82,8 +94,8 @@ body.theme-light {
 }
 
 .theme-dark input:focus, .theme-dark select:focus, .theme-dark textarea:focus {
-  border-color: #10b981 !important;
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4) !important;
+  border-color: #06b6d4 !important;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.4) !important;
   background-color: rgba(255, 255, 255, 0.06) !important;
   outline: none !important;
 }
@@ -96,14 +108,14 @@ body.theme-light {
 /* Accent Badge Overrides for Dark Mode High Contrast */
 .theme-dark .bg-\[\#9ff5c1\], 
 .theme-dark [class*="bg-[#9ff5c1]"] {
-  background-color: rgba(16, 185, 129, 0.15) !important;
-  border: 1px solid rgba(16, 185, 129, 0.35) !important;
-  color: #10b981 !important;
+  background-color: rgba(6, 182, 212, 0.15) !important;
+  border: 1px solid rgba(6, 182, 212, 0.35) !important;
+  color: #06b6d4 !important;
 }
 
 .theme-dark .text-\[\#002111\], 
 .theme-dark [class*="text-[#002111]"] {
-  color: #10b981 !important;
+  color: #06b6d4 !important;
 }
 
 .theme-dark .bg-\[\#ffdeaa\], 
@@ -135,12 +147,12 @@ body.theme-light {
 
 /* Header Action Details Override */
 .theme-dark .bg-\[\#1a365d\] {
-  background-color: rgba(99, 102, 241, 0.1) !important;
-  border: 1px solid rgba(99, 102, 241, 0.3) !important;
+  background-color: rgba(30, 64, 175, 0.1) !important;
+  border: 1px solid rgba(30, 64, 175, 0.3) !important;
 }
 
 .theme-dark .text-\[\#9ff5c1\] {
-  color: #10b981 !important;
+  color: #06b6d4 !important;
 }
 
 /* Navy Text Forcing in Dark Mode */
@@ -164,7 +176,7 @@ body.theme-light {
 
 /* Specific item highlight circles */
 .theme-dark .bg-\[\#e5eeff\] {
-  background-color: rgba(99, 102, 241, 0.15) !important;
+  background-color: rgba(30, 64, 175, 0.15) !important;
   color: #a5b4fc !important;
 }
 
@@ -172,16 +184,16 @@ body.theme-light {
 .theme-dark .bg-\[\#002045\]:not(span), 
 .theme-dark button[class*="bg-[#002045]"],
 .theme-dark input[type="submit"] {
-  background-color: #4f46e5 !important;
+  background-color: #1e3a8a !important;
   color: #ffffff !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  box-shadow: 0 4px 20px rgba(79, 70, 229, 0.35) !important;
+  box-shadow: 0 4px 20px rgba(30, 58, 138, 0.35) !important;
 }
 
 .theme-dark .bg-\[\#002045\]:hover:not(span), 
 .theme-dark button[class*="bg-[#002045]"]:hover {
-  background-color: #6366f1 !important;
-  box-shadow: 0 4px 25px rgba(99, 102, 241, 0.55), 0 0 10px rgba(99, 102, 241, 0.2) !important;
+  background-color: #1e40af !important;
+  box-shadow: 0 4px 25px rgba(30, 64, 175, 0.55), 0 0 10px rgba(30, 64, 175, 0.2) !important;
   transform: translateY(-1px) !important;
 }
 
@@ -191,7 +203,7 @@ body.theme-light {
 }
 
 .theme-dark circle[stroke="#1a365d"] {
-  stroke: #10b981 !important;
+  stroke: #06b6d4 !important;
 }
 
 
@@ -212,9 +224,9 @@ body.theme-light {
   background-color: #ffffff !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  border: 1px solid rgba(13, 148, 136, 0.15) !important; /* Soft Teal/Cyan thin outline border */
+  border: 1px solid rgba(14, 165, 233, 0.15) !important; /* Soft Teal/Cyan thin outline border */
   color: #000000 !important; /* Black font */
-  box-shadow: 0 6px 18px rgba(13, 148, 136, 0.04) !important;
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.04) !important;
 }
 
 /* Force outer body container blocks and backdrops to pure white */
@@ -229,8 +241,8 @@ body.theme-light {
 .theme-light .bg-white.hover\:shadow-\[0_4px_12px_rgba\(0\,32\,69\,0\.05\)\]:hover,
 .theme-light .hover\:shadow-md:hover,
 .theme-light [class*="bg-white"]:hover {
-  border-color: rgba(13, 148, 136, 0.45) !important;
-  box-shadow: 0 0 16px rgba(13, 148, 136, 0.12) !important;
+  border-color: rgba(14, 165, 233, 0.45) !important;
+  box-shadow: 0 0 16px rgba(14, 165, 233, 0.12) !important;
   background-color: #f0fdfa !important; /* light soft cyan/teal background glow tint */
 }
 
@@ -257,7 +269,7 @@ body.theme-light {
 .theme-light h6,
 .theme-light .font-bold,
 .theme-light .font-extrabold {
-  color: #0f766e !important; /* Deep Cyan/Teal main headings */
+  color: #0284c7 !important; /* Deep Cyan/Teal main headings */
 }
 
 /* Sub-labels and decorative indicators map to Teal/Cyan */
@@ -267,12 +279,12 @@ body.theme-light {
 .theme-light .text-slate-650,
 .theme-light [class*="text-slate-400"],
 .theme-light [class*="text-slate-350"] {
-  color: #0d9488 !important; /* Clean Teal font */
+  color: #0ea5e9 !important; /* Clean Teal font */
 }
 
 /* Slate descriptions map to a dark teal-black */
 .theme-light .text-slate-600 {
-  color: #115e59 !important; /* Rich Teal-Black */
+  color: #0369a1 !important; /* Rich Teal-Black */
 }
 
 /* Any indigo status label maps to readable Cyan/Teal font */
@@ -285,7 +297,7 @@ body.theme-light {
 .theme-light .text-emerald-600,
 .theme-light .text-cyan-400,
 .theme-light .text-cyan-500 {
-  color: #0d9488 !important; /* Cyan-Teal accent highlight font */
+  color: #0ea5e9 !important; /* Cyan-Teal accent highlight font */
 }
 
 /* Non-destructive alert states stay highly legible red */
@@ -304,15 +316,15 @@ body.theme-light {
 .theme-light .bg-slate-900\/60,
 .theme-light .bg-\[\#9ff5c1\],
 .theme-light [class*="bg-[#9ff5c1]"] {
-  background-color: rgba(13, 148, 136, 0.08) !important;
-  border: 1px solid rgba(13, 148, 136, 0.3) !important;
-  color: #0f766e !important; /* High contrast Dark Teal font */
+  background-color: rgba(14, 165, 233, 0.08) !important;
+  border: 1px solid rgba(14, 165, 233, 0.3) !important;
+  color: #0284c7 !important; /* High contrast Dark Teal font */
 }
 
 /* Text inside dynamic tags mapped to high contrast green/teal */
 .theme-light .text-\[\#002111\],
 .theme-light .text-emerald-300 {
-  color: #0f766e !important;
+  color: #0284c7 !important;
 }
 
 /* Orange badges map to warm light backgrounds */
@@ -332,7 +344,7 @@ body.theme-light {
 .theme-light select, 
 .theme-light textarea {
   background-color: #ffffff !important;
-  border: 1px solid rgba(13, 148, 136, 0.3) !important;
+  border: 1px solid rgba(14, 165, 233, 0.3) !important;
   color: #000000 !important;
   transition: all 0.2s ease !important;
 }
@@ -345,8 +357,8 @@ body.theme-light {
 .theme-light input:focus, 
 .theme-light select:focus, 
 .theme-light textarea:focus {
-  border-color: #0d9488 !important;
-  box-shadow: 0 0 10px rgba(13, 148, 136, 0.25) !important;
+  border-color: #0ea5e9 !important;
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.25) !important;
   outline: none !important;
 }
 
@@ -357,8 +369,8 @@ body.theme-light {
 
 /* Specific item highlight circles */
 .theme-light .bg-\[\#e5eeff\] {
-  background-color: rgba(13, 148, 136, 0.08) !important;
-  color: #0f766e !important;
+  background-color: rgba(14, 165, 233, 0.08) !important;
+  color: #0284c7 !important;
 }
 
 /* Glow Primary Button Effects mapping to Accent Teal */
@@ -367,10 +379,10 @@ body.theme-light {
 .theme-light input[type="submit"],
 .theme-light .bg-gradient-to-r.from-indigo-600.to-emerald-600,
 .theme-light .bg-gradient-to-br.from-indigo-500.to-emerald-500 {
-  background: #0d9488 !important; /* Unified solid Cyan/Teal primary background */
+  background: #0ea5e9 !important; /* Unified solid Cyan/Teal primary background */
   color: #ffffff !important; /* elegant white text */
-  border: 1px solid #0f766e !important;
-  box-shadow: 0 4px 15px rgba(13, 148, 136, 0.25) !important;
+  border: 1px solid #0284c7 !important;
+  box-shadow: 0 4px 15px rgba(14, 165, 233, 0.25) !important;
   text-shadow: none !important;
 }
 
@@ -378,23 +390,23 @@ body.theme-light {
 .theme-light button[class*="bg-[#002045]"]:hover,
 .theme-light input[type="submit"]:hover,
 .theme-light .bg-gradient-to-r.from-indigo-600.to-emerald-600:hover {
-  background: #0f766e !important; /* Slightly darker teal on hover */
-  box-shadow: 0 4px 15px rgba(13, 148, 136, 0.4) !important;
+  background: #0284c7 !important; /* Slightly darker teal on hover */
+  box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4) !important;
   transform: translateY(-1px) !important;
 }
 
 /* SVGs and charts alignment in Light Mode */
 .theme-light circle[stroke="#d4e4fc"] {
-  stroke: rgba(13, 148, 136, 0.15) !important;
+  stroke: rgba(14, 165, 233, 0.15) !important;
 }
 
 .theme-light circle[stroke="#1a365d"] {
-  stroke: #0d9488 !important;
+  stroke: #0ea5e9 !important;
 }
 
 .theme-light svg, 
 .theme-light .lucide {
-  color: #0d9488 !important; /* Beautiful pure Teal for line icons */
+  color: #0ea5e9 !important; /* Beautiful pure Teal for line icons */
 }
 
 /* Border slate line mapping in Light Mode */
@@ -406,7 +418,7 @@ body.theme-light {
 .theme-light .border-white\/15,
 .theme-light .border-white\/20,
 .theme-light .border-white\/25 {
-  border-color: rgba(13, 148, 136, 0.15) !important;
+  border-color: rgba(14, 165, 233, 0.15) !important;
 }
 
 /* Utility slate bg resets in Light Mode */
@@ -417,12 +429,12 @@ body.theme-light {
 .theme-light .bg-slate-900\/20,
 .theme-light .bg-slate-900\/30,
 .theme-light .bg-slate-900\/10 {
-  background-color: rgba(13, 148, 136, 0.05) !important;
-  border-color: rgba(13, 148, 136, 0.12) !important;
+  background-color: rgba(14, 165, 233, 0.05) !important;
+  border-color: rgba(14, 165, 233, 0.12) !important;
 }
 
 /* Header action details background in Light Mode */
 .theme-light .bg-\[\#1a365d\] {
-  background-color: rgba(13, 148, 136, 0.08) !important;
-  border: 1px solid rgba(13, 148, 136, 0.2) !important;
+  background-color: rgba(14, 165, 233, 0.08) !important;
+  border: 1px solid rgba(14, 165, 233, 0.2) !important;
 }
