@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { Shield, Fingerprint, Lock, Zap, RefreshCw, AlertCircle, Sparkles, Smile } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 
 interface BiometricLockScreenProps {
   onUnlock: () => void;
@@ -29,7 +31,27 @@ export default function BiometricLockScreen({ onUnlock, onLogout }: BiometricLoc
 
     const isRtl = language === 'ar';
 
-    // 1. Try Native WebAuthn API
+    // 0. Try Native Capacitor Biometric Plugin (iOS/Android)
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const result = await NativeBiometric.isAvailable();
+        if (result.isAvailable) {
+          await NativeBiometric.verifyIdentity({
+            reason: t("Unlock terminal"),
+            title: t("Authentication Required"),
+            subtitle: t("Bitvera Secure Login"),
+            description: t("Scan your biometric signature to proceed")
+          });
+          triggerSuccessAnimation();
+          return;
+        }
+      } catch (err: any) {
+        console.warn("[NativeBiometric Debug] Native biometric rejected or failed:", err);
+        // Fallback to simulation if native fails
+      }
+    }
+
+    // 1. Try Native WebAuthn API (Web Browser)
     if (window.navigator.credentials && window.PublicKeyCredential) {
       try {
         const challenge = new Uint8Array([1, 2, 3, 4, 12, 13, 14, 15]);
