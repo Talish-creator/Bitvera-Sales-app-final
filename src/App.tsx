@@ -17,6 +17,7 @@ import CustomerFormScreen from './components/CustomerFormScreen';
 import CreateOrderScreen from './components/CreateOrderScreen';
 import PaymentScreen from './components/PaymentScreen';
 import InvoiceViewer from './components/InvoiceViewer';
+import Sidebar from './components/Sidebar';
 import InventoryScreen from './components/InventoryScreen';
 import LoadingRequestsScreen from './components/LoadingRequestsScreen';
 import ClosingReportsScreen from './components/ClosingReportsScreen';
@@ -35,6 +36,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<ViewState>('login');
   const [user, setUser] = useState<{ username: string; role: string } | null>(null);
   const [isBiometricLocked, setIsBiometricLocked] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Global transactional simulation states
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
@@ -165,13 +167,24 @@ export default function App() {
           onLogout={handleLogout}
         />
       )}
+
+      {/* Slide-out Mobile Navigation Sidebar */}
+      {user && (
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+          onNavigate={setCurrentView} 
+          onLogout={handleLogout} 
+          isDark={isDark} 
+        />
+      )}
       
       {/* Dynamic Persistent App Header Row (Show only if user is logged in) */}
       {user && (
         <header className={`sticky top-0 left-0 right-0 ${isDark ? 'bg-slate-950/70 border-b border-white/10' : 'bg-white/80 border-b border-slate-200 shadow-xs'} backdrop-blur-md py-3.5 px-4 z-40 max-w-lg mx-auto flex items-center justify-between transition-colors`}>
           <div className="flex items-center gap-2.5">
             <button
-              onClick={() => setCurrentView('dashboard')}
+              onClick={() => setIsSidebarOpen(true)}
               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${isDark ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-black/5 text-slate-700'}`}
             >
               <Menu className="w-5 h-5" />
