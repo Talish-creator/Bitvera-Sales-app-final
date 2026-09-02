@@ -438,3 +438,34 @@ body.theme-light {
   background-color: rgba(14, 165, 233, 0.08) !important;
   border: 1px solid rgba(14, 165, 233, 0.2) !important;
 }
+
+/* ==========================================================================
+   PRINT MEDIA STYLES (ZATCA TAX INVOICE PRINTING)
+   ========================================================================== */
+@media print {
+  body, html {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  header, nav, .no-print, [class*="no-print"] {
+    display: none !important;
+  }
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  #invoice-printable-area {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    max-width: 100% !important;
+    padding: 16px !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+}
+

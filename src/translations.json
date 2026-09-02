@@ -424,5 +424,11 @@
   "IN STOCK": "متوفر",
   "LOW STOCK": "منخفض",
   "CRITICAL": "حرج",
-  "OUT OF STOCK": "غير متوفر"
+  "OUT OF STOCK": "غير متوفر",
+  "Save": "حفظ",
+  "Saved": "تم الحفظ",
+  "Print": "طباعة",
+  "Printing...": "جاري الطباعة...",
+  "Close PDF Document": "إغلاق عرض الفاتورة",
+  "Return to Dashboard Console": "الرجوع إلى لوحة القيادة"
 }

@@ -27,7 +27,7 @@ export default function InvoiceViewer({
   onNavigate,
   orderItems
 }: InvoiceViewerProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { activeCurrency, format, convert } = useCurrency();
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isPrinted, setIsPrinted] = useState(false);
@@ -46,23 +46,60 @@ export default function InvoiceViewer({
 
   const handleDownload = () => {
     setIsDownloaded(true);
+    const printableElement = document.getElementById('invoice-printable-area');
+    if (printableElement) {
+      const isRtl = language === 'ar';
+      const htmlContent = `<!DOCTYPE html>
+<html lang="${language}" dir="${isRtl ? 'rtl' : 'ltr'}">
+<head>
+  <meta charset="UTF-8">
+  <title>${idStr}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: #fff; color: #0f172a; padding: 32px; margin: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; margin-bottom: 12px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+    th { text-align: ${isRtl ? 'right' : 'left'}; font-size: 11px; text-transform: uppercase; background: #f8fafc; color: #64748b; font-weight: bold; }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .font-bold { font-weight: bold; }
+    .font-mono { font-family: monospace; }
+  </style>
+</head>
+<body>
+  ${printableElement.innerHTML}
+</body>
+</html>`;
+
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${idStr}.html`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
     setTimeout(() => setIsDownloaded(false), 2000);
   };
 
   const handlePrint = () => {
     setIsPrinted(true);
-    setTimeout(() => setIsPrinted(false), 2000);
+    setTimeout(() => {
+      window.print();
+      setIsPrinted(false);
+    }, 150);
   };
 
   return (
     <div className="space-y-6 pb-24 text-left font-sans relative z-10 transition-all duration-300">
       {/* Top action PDF bar */}
-      <div className="bg-slate-950/70 border border-white/10 text-white p-4 rounded-2xl flex items-center justify-between shadow-xl backdrop-blur-md">
+      <div className="bg-slate-950/70 border border-white/10 text-white p-4 rounded-2xl flex items-center justify-between shadow-xl backdrop-blur-md no-print">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => onNavigate('today_route')}
+            onClick={() => onNavigate('dashboard')}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 hover:text-indigo-400 border border-white/10 text-slate-300 font-bold cursor-pointer text-xs transition-colors"
-            title="Close PDF Document"
+            title={t("Close PDF Document")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -78,20 +115,20 @@ export default function InvoiceViewer({
             className="p-2 px-3 rounded-xl bg-slate-900 border border-white/10 hover:border-emerald-500/40 text-slate-200 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-mono font-bold"
           >
             {isDownloaded ? <Check className="w-4 h-4 text-emerald-400" /> : <Download className="w-3.5 h-3.5 text-indigo-400" />}
-            {isDownloaded ? 'Saved' : 'Save'}
+            {isDownloaded ? t("Saved") : t("Save")}
           </button>
           <button
             onClick={handlePrint}
-            className="p-2 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-555 hover:to-indigo-555 text-white transition-all cursor-pointer flex items-center gap-1.5 text-xs font-mono font-bold border border-white/10"
+            className="p-2 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white transition-all cursor-pointer flex items-center gap-1.5 text-xs font-mono font-bold border border-white/10"
           >
             {isPrinted ? <Check className="w-4 h-4 text-emerald-400" /> : <Printer className="w-3.5 h-3.5 text-emerald-300" />}
-            {isPrinted ? 'Queued' : 'Print'}
+            {isPrinted ? t("Printing...") : t("Print")}
           </button>
         </div>
       </div>
 
       {/* The Paper A4 Invoice Mock card */}
-      <div className="bg-white border text-slate-900 border-slate-300 rounded-2xl shadow-2xl overflow-hidden p-6 md:p-10 font-sans max-w-2xl mx-auto space-y-6 leading-relaxed relative">
+      <div id="invoice-printable-area" className="bg-white border text-slate-900 border-slate-300 rounded-2xl shadow-2xl overflow-hidden p-6 md:p-10 font-sans max-w-2xl mx-auto space-y-6 leading-relaxed relative">
         
         {/* Header Block with custom logo */}
         <div className="flex flex-col md:flex-row justify-between items-start border-b border-slate-250 pb-5 gap-4">
@@ -232,12 +269,12 @@ export default function InvoiceViewer({
       </div>
       
       {/* Return back button */}
-      <div className="text-center pt-2">
+      <div className="text-center pt-2 no-print">
         <button
           onClick={() => onNavigate('dashboard')}
-          className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-555 hover:to-indigo-555 text-white rounded-xl text-xs font-mono font-bold active:scale-95 shadow-md transition-all cursor-pointer border border-white/10"
+          className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl text-xs font-mono font-bold active:scale-95 shadow-md transition-all cursor-pointer border border-white/10"
         >
-          Return to Dashboard Console
+          {t("Return to Dashboard Console")}
         </button>
       </div>
     </div>
