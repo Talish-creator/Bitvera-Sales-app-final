@@ -300,7 +300,7 @@
   "Peak (May)": "ذروة المبيعات (مايو)",
   "65% Capacity": "٦٥٪ من القدرة",
   "View All": "عرض الكل بالتفصيل",
-  "All Units": "كل العملاء",
+  "All Units": "كافة الأصناف",
   "Pending": "معلقين",
   "Completed": "مكتملين",
   "Estimated VAT (15%):": "ضريبة القيمة المضافة المقدرة (١٥٪):",
@@ -416,8 +416,13 @@
   "Install Client APK (Android)": "تثبيت تطبيق أندرويد المستقل (APK)",
   "COMPILING SECURE SANDBOX CONTAINER...": "جاري تجميع حزمة التثبيت الآمنة...",
   "Bitvera app installed and configured successfully.": "تم تثبيت وإعداد تطبيق مبيعات بيتفيرا بنجاح على هذا الجوال.",
-  "Tap the \"Install Client APK\" button below to retrieve the standalone security bundle, or use the browser option \"Add to Home Screen\".": "اضغط على زر تنزيل حزمة الأندرويد بالأسفل للحصول على تطبيق أندرويد المستقل، أو من خيارات المتصفح اختر إضافة للشاشة الرئيسية.",
   "ALMAS 1.5L Packs": "مياه الماس عبوات ١.٥ لتر",
   "500ml & Other Packs": "عبوات ٥٠٠ مل والأصناف الأخرى",
-  "Finished Goods Central Warehouse": "مستودع البضائع الجاهزة المركزي"
+  "Finished Goods Central Warehouse": "مستودع البضائع الجاهزة المركزي",
+  "Good Stock": "مخزون متوفر",
+  "Critical Depleted": "مخزون حرج",
+  "IN STOCK": "متوفر",
+  "LOW STOCK": "منخفض",
+  "CRITICAL": "حرج",
+  "OUT OF STOCK": "غير متوفر"
 }

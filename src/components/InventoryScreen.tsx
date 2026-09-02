@@ -120,7 +120,7 @@ export default function InventoryScreen({ products, onUpdateStock }: InventorySc
                 : 'text-slate-400 border-white/10 bg-slate-950/20 hover:text-white hover:bg-slate-900/60'
             }`}
           >
-            {mode === 'all' ? 'All Units' : mode === 'normal' ? 'Good Stock' : mode === 'low' ? 'Low Stock' : 'Critical Depleted'}
+            {mode === 'all' ? t('All Units') : mode === 'normal' ? t('Good Stock') : mode === 'low' ? t('Low Stock') : t('Critical Depleted')}
           </button>
         ))}
       </div>
@@ -168,7 +168,7 @@ export default function InventoryScreen({ products, onUpdateStock }: InventorySc
                       : 'bg-rose-500/10 text-rose-405 border-rose-500/20 text-rose-400'
                   }`}
                 >
-                  {p.status}
+                  {t(p.status)}
                 </span>
               </div>
             </div>

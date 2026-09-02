@@ -73,7 +73,7 @@ export default function RouteScreen({
               : 'text-slate-400 hover:text-white'
           }`}
         >
-          All Units
+          {t("All Units")}
         </button>
         <button
           onClick={() => setActiveTab('pending')}
@@ -83,7 +83,7 @@ export default function RouteScreen({
               : 'text-slate-400 hover:text-white'
           }`}
         >
-          Pending
+          {t("Pending")}
         </button>
         <button
           onClick={() => setActiveTab('completed')}
@@ -93,7 +93,7 @@ export default function RouteScreen({
               : 'text-slate-400 hover:text-white'
           }`}
         >
-          Completed
+          {t("Completed")}
         </button>
       </div>
 

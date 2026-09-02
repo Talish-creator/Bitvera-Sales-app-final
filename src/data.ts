@@ -43,7 +43,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'p6',
-    name: 'HABARI 1.5ML*6: HABARI BOPP W...',
+    name: 'HABARI 1.5ML*6 (BOPP Wrap)',
     sku: 'HAB-1.5L-6',
     price: 6.50,
     stock: 6,
