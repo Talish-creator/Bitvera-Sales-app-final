@@ -142,11 +142,11 @@ export default function DashboardScreen({ userName, onNavigate, orders }: Dashbo
               <div className="space-y-2 font-mono">
                 <div className="flex items-center gap-2 text-xs">
                   <span className="w-2.5 h-2.5 bg-emerald-500 rounded-sm block shadow-[0_0_6px_rgba(16,185,129,0.4)]"></span>
-                  <span className="text-slate-300">{t("Lubricants (A)")}</span>
+                  <span className="text-slate-300">{t("ALMAS 1.5L Packs")}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="w-2.5 h-2.5 bg-indigo-500 rounded-sm block"></span>
-                  <span className="text-slate-500">{t("Other Filters")}</span>
+                  <span className="text-slate-500">{t("500ml & Other Packs")}</span>
                 </div>
               </div>
             </div>

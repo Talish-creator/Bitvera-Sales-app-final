@@ -1,0 +1,51 @@
+# Frappe/ERPNext Helm Chart Values
+# This configures a multi-tenant, horizontally scalable ERPNext deployment
+# Reference: https://github.com/frappe/helm
+
+mariadb:
+  enabled: true
+  architecture: replication
+  auth:
+    rootPassword: "CHANGE_IN_PRODUCTION"
+  primary:
+    persistence:
+      size: 50Gi
+
+redis:
+  enabled: true
+  architecture: standalone
+
+jobs:
+  configure:
+    # Important for multi-tenant setup. The control plane will make sites.
+    makeSite: false 
+  
+worker:
+  # Horizontally scale background workers
+  replicaCount: 3
+  
+gunicorn:
+  # Dedicated pods for web requests
+  replicaCount: 2
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: "*.sees.app" # Wildcard ingress for automated tenant routing
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: sees-tls-secret
+      hosts:
+        - "*.sees.app"

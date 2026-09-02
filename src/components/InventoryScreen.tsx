@@ -157,7 +157,7 @@ export default function InventoryScreen({ products, onUpdateStock }: InventorySc
               {/* Roster stock indicators */}
               <div className="text-right space-y-1.5">
                 <span className="text-base font-bold text-white font-mono leading-none block">
-                  {p.stock}
+                  {p.stock.toLocaleString()}
                 </span>
                 <span
                   className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-mono font-bold tracking-widest uppercase border ${

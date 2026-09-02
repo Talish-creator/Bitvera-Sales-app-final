@@ -28,8 +28,8 @@ export default function CreateOrderScreen({
   // Local cart state
   // key: product id, value: quantity
   const [cart, setCart] = useState<Record<string, number>>({
-    'p5': 2, // Industrial Lubricant (from screen-cap default)
-    'p6': 5  // Heavy Duty Filter (from screen-cap default)
+    'p1': 50, // ALMAS 1.5 L*6
+    'p2': 10  // ALMAS 500 ML*12
   });
 
   const handleIncrement = (productId: string, stock: number) => {
@@ -182,7 +182,7 @@ export default function CreateOrderScreen({
           type="button"
           onClick={() => {
             alert('Barcode hardware simulator connected. Standard scanning activated.');
-            handleIncrement('p5', 42); 
+            handleIncrement('p1', 3028); 
           }}
           className="px-3.5 bg-slate-900 border border-white/10 rounded-xl text-slate-300 hover:text-emerald-400 hover:border-emerald-500/40 transition-all flex items-center gap-1.5 text-xs font-mono font-bold cursor-pointer shadow-md"
         >
@@ -221,7 +221,7 @@ export default function CreateOrderScreen({
                         : 'bg-emerald-500/10 text-emerald-350 border border-emerald-500/20'
                     }`}
                   >
-                    ● {isOutOfStock ? 'Depleted' : `${p.stock} Units`}
+                    ● {isOutOfStock ? 'Depleted' : `${p.stock.toLocaleString()} Units`}
                   </span>
                 </div>
                 <p className="text-[10px] font-medium text-slate-500 font-mono">SKU: {p.sku}</p>

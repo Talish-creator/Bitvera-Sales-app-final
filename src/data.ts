@@ -3,59 +3,91 @@ import { Product, Customer, Visit, Order, LoadingRequest, InventoryClosingItem }
 export const INITIAL_PRODUCTS: Product[] = [
   {
     id: 'p1',
-    name: 'Hydrating Serum 50ml',
-    sku: 'HYD-50-SRM',
-    price: 120,
-    stock: 145,
+    name: 'ALMAS 1.5 L*6',
+    sku: 'ALM-1.5L-6',
+    price: 6.50,
+    stock: 3028,
     status: 'IN STOCK'
   },
   {
     id: 'p2',
-    name: 'Vitamin C Booster 30ml',
-    sku: 'VTC-30-BST',
-    price: 95,
-    stock: 12,
-    status: 'LOW STOCK'
+    name: 'ALMAS 500 ML*12',
+    sku: 'ALM-500ML-12',
+    price: 7.00,
+    stock: 3041,
+    status: 'IN STOCK'
   },
   {
     id: 'p3',
-    name: 'Night Repair Cream 100ml',
-    sku: 'NRC-100-JAR',
-    price: 180,
-    stock: 88,
+    name: 'ROMANA 1.5ML*6',
+    sku: 'ROM-1.5L-6',
+    price: 6.50,
+    stock: 122,
     status: 'IN STOCK'
   },
   {
     id: 'p4',
-    name: 'Daily Cleanser 200ml',
-    sku: 'CLN-200-DLY',
-    price: 65,
-    stock: 4,
-    status: 'CRITICAL'
+    name: 'DEAL 1.5 ML*6',
+    sku: 'DEL-1.5L-6',
+    price: 5.50,
+    stock: 68,
+    status: 'IN STOCK'
   },
   {
     id: 'p5',
-    name: 'Industrial Lubricant 5L',
-    sku: 'LUB-5L-892',
-    price: 145.00,
-    stock: 42,
+    name: 'DOHAR 1.5 ML*6',
+    sku: 'DOH-1.5L-6',
+    price: 6.00,
+    stock: 446,
     status: 'IN STOCK'
   },
   {
     id: 'p6',
-    name: 'Heavy Duty Filter',
-    sku: 'FLT-HD-001',
-    price: 85.50,
-    stock: 18,
-    status: 'IN STOCK'
+    name: 'HABARI 1.5ML*6: HABARI BOPP W...',
+    sku: 'HAB-1.5L-6',
+    price: 6.50,
+    stock: 6,
+    status: 'CRITICAL'
   },
   {
     id: 'p7',
-    name: 'Standard O-Ring Pack',
-    sku: 'ORG-STD-99',
-    price: 25.00,
-    stock: 0,
-    status: 'OUT OF STOCK'
+    name: 'SIBLA 1.5ML*6',
+    sku: 'SIB-1.5L-6',
+    price: 5.50,
+    stock: 41,
+    status: 'IN STOCK'
+  },
+  {
+    id: 'p8',
+    name: 'ONMART 1.5L*6',
+    sku: 'ONM-1.5L-6',
+    price: 6.00,
+    stock: 32,
+    status: 'LOW STOCK'
+  },
+  {
+    id: 'p9',
+    name: 'DAILY 1.5ML*6',
+    sku: 'DLY-1.5L-6',
+    price: 5.50,
+    stock: 210,
+    status: 'IN STOCK'
+  },
+  {
+    id: 'p10',
+    name: 'ALIF 1.5 ML*6',
+    sku: 'ALF-1.5L-6',
+    price: 6.00,
+    stock: 11,
+    status: 'LOW STOCK'
+  },
+  {
+    id: 'p11',
+    name: 'AHLIYA 1.5L*6',
+    sku: 'AHL-1.5L-6',
+    price: 6.00,
+    stock: 21,
+    status: 'LOW STOCK'
   }
 ];
 
@@ -152,11 +184,11 @@ export const INITIAL_ORDERS: Order[] = [
     customerId: 'CUS-2026-00352',
     customerName: 'Alandalus Cent',
     date: '10 Jun 2026',
-    total: 825.13,
+    total: 454.25,
     status: 'To Deliver and Bill',
     items: [
-      { name: 'Industrial Lubricant 5L', qty: 2, price: 145 },
-      { name: 'Heavy Duty Filter', qty: 5, price: 85.50 }
+      { name: 'ALMAS 1.5 L*6', qty: 50, price: 6.50 },
+      { name: 'ALMAS 500 ML*12', qty: 10, price: 7.00 }
     ]
   },
   {
@@ -164,11 +196,11 @@ export const INITIAL_ORDERS: Order[] = [
     customerId: 'CUS-2026-00410',
     customerName: 'Rawabi Supermarket',
     date: '09 Jun 2026',
-    total: 480.00,
+    total: 281.75,
     status: 'To Deliver and Bill',
     items: [
-      { name: 'Night Repair Cream 100ml', qty: 2, price: 180 },
-      { name: 'Vitamin C Booster 30ml', qty: 1, price: 95 }
+      { name: 'DOHAR 1.5 ML*6', qty: 30, price: 6.00 },
+      { name: 'ROMANA 1.5ML*6', qty: 10, price: 6.50 }
     ]
   }
 ];
@@ -176,37 +208,49 @@ export const INITIAL_ORDERS: Order[] = [
 export const INITIAL_LOADING_REQUESTS: LoadingRequest[] = [
   {
     id: 'PR-2026-00488',
-    warehouse: 'Sadus Stock Riyadh - AMIC',
+    warehouse: 'Finished Goods Central Warehouse',
     date: '06 Jun 2026',
-    items: 12,
+    items: 500,
     status: 'Requested'
   },
   {
     id: 'PR-2026-00487',
-    warehouse: 'North Warehouse - DMM',
+    warehouse: 'Sadus Stock Riyadh - AMIC',
     date: '05 Jun 2026',
-    items: 45,
+    items: 250,
     status: 'Requested'
   }
 ];
 
 export const INITIAL_CLOSING_INVENTORY: InventoryClosingItem[] = [
   {
-    code: 'SKU-8021',
-    description: 'Standard Widget A',
-    openingQty: 6400,
-    currentQty: 6400
+    code: 'ALMAS 1.5 L*6',
+    description: 'ALMAS Water 1.5L x 6 Pack',
+    openingQty: 3028,
+    currentQty: 3028
   },
   {
-    code: 'SKU-8022',
-    description: 'Premium Widget B',
-    openingQty: 1200,
-    currentQty: 1200
+    code: 'ALMAS 500 ML*12',
+    description: 'ALMAS Water 500ml x 12 Pack',
+    openingQty: 3041,
+    currentQty: 3041
   },
   {
-    code: 'SKU-8025',
-    description: 'Bulk Pack C',
-    openingQty: 450,
-    currentQty: 450
+    code: 'DOHAR 1.5 ML*6',
+    description: 'DOHAR Water 1.5L x 6 Pack',
+    openingQty: 446,
+    currentQty: 446
+  },
+  {
+    code: 'DAILY 1.5ML*6',
+    description: 'DAILY Water 1.5L x 6 Pack',
+    openingQty: 210,
+    currentQty: 210
+  },
+  {
+    code: 'ROMANA 1.5ML*6',
+    description: 'ROMANA Water 1.5L x 6 Pack',
+    openingQty: 122,
+    currentQty: 122
   }
 ];

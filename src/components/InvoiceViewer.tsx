@@ -35,13 +35,13 @@ export default function InvoiceViewer({
   // Defaults fallback
   const idStr = invoiceData?.id || 'SINV-2026-04122';
   const dateStr = invoiceData?.date || '10 Jun 2026';
-  const subtotal = invoiceData?.subtotal || 717.50;
-  const tax = invoiceData?.tax || 107.63;
-  const total = invoiceData?.total || 825.13;
+  const subtotal = invoiceData?.subtotal || 395.00;
+  const tax = invoiceData?.tax || 59.25;
+  const total = invoiceData?.total || 454.25;
 
   const items = orderItems.length > 0 ? orderItems : [
-    { name: 'Industrial Lubricant 5L', qty: 2, price: 145.00 },
-    { name: 'Heavy Duty Filter', qty: 5, price: 85.50 }
+    { name: 'ALMAS 1.5 L*6', qty: 50, price: 6.50 },
+    { name: 'ALMAS 500 ML*12', qty: 10, price: 7.00 }
   ];
 
   const handleDownload = () => {
