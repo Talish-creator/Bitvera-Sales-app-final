@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Shield, X, Download, Trash2, Eye, MapPin, Camera, Database, FileText, Check, AlertTriangle } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { getCurrentUser, getOrders, getCustomers, getVisits, getLoadingRequests, getDailyClosingReports, purgeLocalData } from '../services/storage';
+import { getQueueStatus } from '../services/offlineQueue';
 
 interface PrivacyPolicyModalProps {
   isOpen: boolean;
@@ -36,29 +38,26 @@ export default function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyMod
 
   const handleExportData = () => {
     try {
+      const currentUser = getCurrentUser();
       // Gather local data for export
       const exportObject: Record<string, any> = {
         app: "Bitvera Sales Enterprise",
         timestamp: new Date().toISOString(),
         locale: language,
-        identity: {
-          name: "Ramy Ahmed",
-          role: "Authorized Representative",
-          warehouse: "Sadus Stock Riyadh"
+        identity: currentUser || {
+          name: "Authorized Representative",
+          role: "Sales Rep"
         },
         local_cache_footprint: {
-          localStorage_keys: Object.keys(localStorage),
-          service_worker: "Active",
-          telemetry_status: telemetryOptIn ? "Opted In" : "Opted Out"
-        }
+          telemetry_status: telemetryOptIn ? "Opted In" : "Opted Out",
+          offline_queue: getQueueStatus()
+        },
+        cached_sales_orders: getOrders(),
+        cached_customer_records: getCustomers(),
+        cached_visit_plans: getVisits(),
+        cached_loading_requests: getLoadingRequests(),
+        cached_closing_reports: getDailyClosingReports()
       };
-
-      // Pull current customer additions or order queue if present
-      const orders = localStorage.getItem('bitvera_orders');
-      if (orders) exportObject.cached_sales_orders = JSON.parse(orders);
-
-      const customers = localStorage.getItem('bitvera_new_customers');
-      if (customers) exportObject.cached_customer_records = JSON.parse(customers);
 
       // Create downloadable file
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObject, null, 2));
@@ -77,17 +76,7 @@ export default function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyMod
 
   const handlePurgeLogs = () => {
     try {
-      // Retain essential i18n and theme keys, but wipe offline sales logs / caches
-      const theme = localStorage.getItem('theme');
-      const lang = localStorage.getItem('system_language');
-      
-      localStorage.clear();
-      
-      if (theme) localStorage.setItem('theme', theme);
-      if (lang) localStorage.setItem('system_language', lang);
-      
-      localStorage.setItem('bitvera_telemetry', String(telemetryOptIn));
-      
+      purgeLocalData();
       setShowConfirmPurge(false);
       showStatusMessage(t("Offline data caches and session storage purged."));
     } catch (e) {

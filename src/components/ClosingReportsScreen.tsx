@@ -1,26 +1,97 @@
 import { useLanguage } from '../context/LanguageContext';
-import { useState } from 'react';
-import { CheckCircle2, ShieldAlert, ArrowLeft, RefreshCw, Smartphone } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CheckCircle2, ShieldAlert, ArrowLeft, RefreshCw, Smartphone, Hash } from 'lucide-react';
 import { InventoryClosingItem } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
+import { getOrders, getClosingInventory, addDailyClosingReport, getCurrentUser } from '../services/storage';
+import { generateClosingAuditSignature, logAuditEvent } from '../services/audit';
 
 interface ClosingReportsScreenProps {
   items: InventoryClosingItem[];
 }
 
-export default function ClosingReportsScreen({ items }: ClosingReportsScreenProps) {
+export default function ClosingReportsScreen({ items: initialItems }: ClosingReportsScreenProps) {
   const { t } = useLanguage();
   const { format } = useCurrency();
   const [activeTab, setActiveTab] = useState<'inventory' | 'finance'>('inventory');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [stampCode, setStampCode] = useState('');
+  const [closingDate, setClosingDate] = useState<string>('');
 
-  const totalOpening = items.reduce((acc, cur) => acc + cur.openingQty, 0);
+  const [orders, setOrders] = useState(() => getOrders());
+  const [closingItems, setClosingItems] = useState<InventoryClosingItem[]>(() => {
+    if (initialItems && initialItems.length > 0) return initialItems;
+    return getClosingInventory();
+  });
 
-  const handleSubmitClosing = () => {
-    setIsSubmitted(true);
-    // Generate a secure confirmation hash code for the supervisor
-    setStampCode(`EOD-HASH-${Math.floor(100000 + Math.random() * 900000)}`);
+  // Calculate live financial metrics from persistent orders
+  const totalCash = orders.reduce((acc, o) => {
+    if (o.cashReceived != null) return acc + o.cashReceived;
+    if (o.paymentMethod === 'Cash') return acc + (o.total || 0);
+    return acc;
+  }, 0);
+
+  const totalBank = orders.reduce((acc, o) => {
+    if (o.bankReceived != null) return acc + o.bankReceived;
+    if (o.paymentMethod === 'Bank Transfer') return acc + (o.total || 0);
+    return acc;
+  }, 0);
+
+  const totalSales = totalCash + totalBank;
+  const totalOpening = closingItems.reduce((acc, cur) => acc + cur.openingQty, 0);
+
+  const handleSubmitClosing = async () => {
+    setIsSubmitting(true);
+    try {
+      const today = new Date().toISOString();
+      const user = getCurrentUser();
+      const userId = user?.id || 'REP-001';
+
+      const sig = await generateClosingAuditSignature({
+        date: today,
+        userId,
+        totalSales,
+        cashReceived: totalCash,
+        bankReceived: totalBank,
+        orderCount: orders.length
+      });
+
+      addDailyClosingReport({
+        id: `EOD-${Date.now()}`,
+        date: today.split('T')[0],
+        timestamp: today,
+        userId,
+        userName: user?.fullName || user?.username || 'Representative',
+        totalOpeningQty: totalOpening,
+        totalClosingQty: closingItems.reduce((acc, cur) => acc + cur.currentQty, 0),
+        itemsSoldQty: orders.reduce((acc, o) => acc + (o.items?.reduce((is, i) => is + i.qty, 0) || 0), 0),
+        cashReceived: totalCash,
+        bankReceived: totalBank,
+        totalSales,
+        expectedTotal: totalSales,
+        variance: 0,
+        orderCount: orders.length,
+        auditHash: sig,
+        syncedToERP: false
+      });
+
+      logAuditEvent('CLOSING_SUBMITTED', {
+        totalSales,
+        cashReceived: totalCash,
+        bankReceived: totalBank,
+        orderCount: orders.length,
+        auditHash: sig
+      }, userId);
+
+      setStampCode(sig);
+      setClosingDate(today);
+      setIsSubmitted(true);
+    } catch (err) {
+      console.error('Failed to submit daily closing:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -102,7 +173,7 @@ export default function ClosingReportsScreen({ items }: ClosingReportsScreenProp
                 </tr>
               </thead>
               <tbody>
-                {items.map((item, idx) => (
+                {closingItems.map((item, idx) => (
                   <tr key={idx} className="border-b border-white/5 py-3 text-slate-200">
                     <td className="py-3 font-mono font-bold text-indigo-400">{item.code}</td>
                     <td className="py-3 pl-4 text-slate-300">{item.description}</td>
@@ -129,20 +200,20 @@ export default function ClosingReportsScreen({ items }: ClosingReportsScreenProp
           <div className="space-y-3 font-mono text-xs">
             <div className="p-3.5 bg-slate-900/60 border border-white/10 rounded-xl flex justify-between">
               <span className="font-sans text-slate-400 font-medium">{t("Allocated Cash Received:")}</span>
-              <span className="font-extrabold text-emerald-400">{format(2450)}</span>
+              <span className="font-extrabold text-emerald-400">{format(totalCash)}</span>
             </div>
             <div className="p-3.5 bg-slate-900/60 border border-white/10 rounded-xl flex justify-between">
               <span className="font-sans text-slate-400 font-medium">{t("Bank Transfers Vouchers:")}</span>
-              <span className="font-extrabold text-white">{format(5800)}</span>
+              <span className="font-extrabold text-white">{format(totalBank)}</span>
             </div>
             <div className="p-3.5 bg-slate-900/60 border border-white/10 rounded-xl flex justify-between">
-              <span className="font-sans text-slate-400 font-medium">{t("Invoice Credits:")}</span>
-              <span className="font-semibold text-slate-500">{format(0)}</span>
+              <span className="font-sans text-slate-400 font-medium">{t("Invoice Count:")}</span>
+              <span className="font-semibold text-slate-300 font-mono">{orders.length}</span>
             </div>
             <hr className="border-white/10" />
             <div className="p-4 bg-slate-900 border border-indigo-500/20 rounded-xl flex justify-between font-extrabold text-sm shadow-inner">
               <span className="font-sans text-indigo-400 font-bold text-xs uppercase tracking-wider">{t("AGGREGATE VERIFIABLE VOUCHERS:")}</span>
-              <span className="text-emerald-400">{format(8250)}</span>
+              <span className="text-emerald-400">{format(totalSales)}</span>
             </div>
           </div>
         </div>
@@ -152,9 +223,21 @@ export default function ClosingReportsScreen({ items }: ClosingReportsScreenProp
       {!isSubmitted && (
         <button
           onClick={handleSubmitClosing}
-          className="w-full bg-gradient-to-r from-[#10b981] to-[#047857] hover:from-[#34d399] hover:to-[#059669] active:scale-98 text-white py-4 rounded-xl text-xs font-mono font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-[0_4px_20px_rgba(16,185,129,0.25)] border border-white/15 cursor-pointer"
+          disabled={isSubmitting}
+          className="w-full bg-gradient-to-r from-[#10b981] to-[#047857] hover:from-[#34d399] hover:to-[#059669] active:scale-98 disabled:opacity-50 text-white py-4 rounded-xl text-xs font-mono font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-[0_4px_20px_rgba(16,185,129,0.25)] border border-white/15 cursor-pointer"
         >
-          <CheckCircle2 className="w-4.5 h-4.5 text-white stroke-[2.5]" />{t("Lock Terminal & Submit Closing")}</button>
+          {isSubmitting ? (
+            <>
+              <RefreshCw className="w-4.5 h-4.5 text-white animate-spin" />
+              {t("Signing Audit Cryptography...")}
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="w-4.5 h-4.5 text-white stroke-[2.5]" />
+              {t("Lock Terminal & Submit Closing")}
+            </>
+          )}
+        </button>
       )}
     </div>
   );

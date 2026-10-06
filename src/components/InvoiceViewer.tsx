@@ -1,8 +1,10 @@
 import { useLanguage } from '../context/LanguageContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Printer, Download, Check, FileText } from 'lucide-react';
 import { ViewState } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
+import { generateZatcaQrDataUrl } from '../services/zatca';
+import { downloadInvoicePdfFile } from '../services/pdf';
 
 interface InvoiceViewerProps {
   invoiceData: {
@@ -15,6 +17,7 @@ interface InvoiceViewerProps {
     bankReceived: number;
     txRef: string;
     hasProof: boolean;
+    customerId?: string;
   } | null;
   customerName: string;
   onNavigate: (view: ViewState) => void;
@@ -31,10 +34,11 @@ export default function InvoiceViewer({
   const { activeCurrency, format, convert } = useCurrency();
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isPrinted, setIsPrinted] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
   // Defaults fallback
   const idStr = invoiceData?.id || 'SINV-2026-04122';
-  const dateStr = invoiceData?.date || '10 Jun 2026';
+  const dateStr = invoiceData?.date || new Date().toISOString().split('T')[0];
   const subtotal = invoiceData?.subtotal || 395.00;
   const tax = invoiceData?.tax || 59.25;
   const total = invoiceData?.total || 454.25;
@@ -44,46 +48,53 @@ export default function InvoiceViewer({
     { name: 'ALMAS 500 ML*12', qty: 10, price: 7.00 }
   ];
 
-  const handleDownload = () => {
-    setIsDownloaded(true);
-    const printableElement = document.getElementById('invoice-printable-area');
-    if (printableElement) {
-      const isRtl = language === 'ar';
-      const htmlContent = `<!DOCTYPE html>
-<html lang="${language}" dir="${isRtl ? 'rtl' : 'ltr'}">
-<head>
-  <meta charset="UTF-8">
-  <title>${idStr}</title>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; background: #fff; color: #0f172a; padding: 24px; margin: 0 auto; max-width: 800px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    table { width: 100%; border-collapse: collapse; margin-top: 14px; margin-bottom: 14px; border: 1px solid #cbd5e1; }
-    th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
-    th { text-align: ${isRtl ? 'right' : 'left'}; font-size: 11px; text-transform: uppercase; background: #f1f5f9; color: #0f172a; font-weight: bold; border-bottom: 2px solid #0f172a; }
-    .text-center { text-align: center; }
-    .text-right { text-align: right; }
-    .font-bold { font-weight: bold; }
-    .font-mono { font-family: monospace; }
-    .bg-slate-50, .bg-slate-100 { background: #f8fafc; }
-    .bg-slate-900 { background: #0f172a; color: #fff; }
-    @media print { body { padding: 0; } }
-  </style>
-</head>
-<body>
-  ${printableElement.innerHTML}
-</body>
-</html>`;
+  useEffect(() => {
+    let isMounted = true;
+    generateZatcaQrDataUrl({
+      sellerName: 'Bitvera ERP IT Solution',
+      vatNumber: '310123456700003',
+      timestamp: dateStr.includes('T') ? dateStr : new Date().toISOString(),
+      invoiceTotal: total.toFixed(2),
+      vatTotal: tax.toFixed(2)
+    }).then(url => {
+      if (isMounted) setQrDataUrl(url);
+    }).catch(err => {
+      console.error('Failed to generate real ZATCA QR', err);
+    });
 
-      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${idStr}.html`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+    return () => {
+      isMounted = false;
+    };
+  }, [dateStr, total, tax]);
+
+  const handleDownload = async () => {
+    setIsDownloaded(true);
+    try {
+      await downloadInvoicePdfFile({
+        invoiceNumber: idStr,
+        date: dateStr,
+        customerName: customerName || 'Walk-in Customer / عميل نقدي',
+        customerId: invoiceData?.customerId || 'CUST-WALKIN',
+        items: items.map(it => ({
+          name: it.name,
+          qty: it.qty,
+          price: it.price,
+          tax: it.qty * it.price * 0.15,
+          total: it.qty * it.price * 1.15
+        })),
+        subtotal,
+        tax,
+        total,
+        currencyCode: activeCurrency.code,
+        paymentMethod: (invoiceData?.cashReceived ?? 0) > 0 && (invoiceData?.bankReceived ?? 0) > 0
+          ? 'Split (Cash + Bank)'
+          : (invoiceData?.cashReceived ?? 0) > 0 ? 'Cash' : 'Bank Transfer'
+      }, `${idStr}.pdf`);
+    } catch (err) {
+      console.error('PDF generation error:', err);
+    } finally {
+      setTimeout(() => setIsDownloaded(false), 2000);
     }
-    setTimeout(() => setIsDownloaded(false), 2000);
   };
 
   const handlePrint = () => {
@@ -235,51 +246,18 @@ export default function InvoiceViewer({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-3 items-center">
           {/* QR Simplified Code Compliance */}
           <div className="flex gap-3.5 items-center p-3 bg-slate-50 border border-slate-300 rounded-xl">
-            {/* Real SVG Vector QR that always prints crisp black */}
-            <svg className="w-22 h-22 shrink-0 bg-white p-1 border border-slate-300 rounded shadow-xs" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="100" height="100" fill="white" />
-              <rect x="6" y="6" width="28" height="28" fill="#0f172a" rx="2" />
-              <rect x="10" y="10" width="20" height="20" fill="white" />
-              <rect x="14" y="14" width="12" height="12" fill="#0f172a" rx="1" />
-              
-              <rect x="66" y="6" width="28" height="28" fill="#0f172a" rx="2" />
-              <rect x="70" y="10" width="20" height="20" fill="white" />
-              <rect x="74" y="14" width="12" height="12" fill="#0f172a" rx="1" />
-              
-              <rect x="6" y="66" width="28" height="28" fill="#0f172a" rx="2" />
-              <rect x="10" y="70" width="20" height="20" fill="white" />
-              <rect x="14" y="74" width="12" height="12" fill="#0f172a" rx="1" />
-              
-              <rect x="40" y="8" width="6" height="6" fill="#0f172a" />
-              <rect x="52" y="8" width="6" height="6" fill="#0f172a" />
-              <rect x="8" y="40" width="6" height="6" fill="#0f172a" />
-              <rect x="8" y="52" width="6" height="6" fill="#0f172a" />
-              
-              <rect x="40" y="20" width="8" height="8" fill="#0f172a" />
-              <rect x="52" y="20" width="8" height="8" fill="#0f172a" />
-              <rect x="40" y="34" width="8" height="8" fill="#0f172a" />
-              <rect x="52" y="34" width="8" height="8" fill="#0f172a" />
-              <rect x="66" y="40" width="8" height="8" fill="#0f172a" />
-              <rect x="78" y="40" width="8" height="8" fill="#0f172a" />
-              <rect x="90" y="40" width="4" height="4" fill="#0f172a" />
-              
-              <rect x="40" y="48" width="10" height="10" fill="#0f172a" />
-              <rect x="54" y="48" width="8" height="8" fill="#0f172a" />
-              <rect x="66" y="52" width="8" height="8" fill="#0f172a" />
-              <rect x="78" y="52" width="8" height="8" fill="#0f172a" />
-              
-              <rect x="40" y="64" width="8" height="8" fill="#0f172a" />
-              <rect x="52" y="64" width="10" height="10" fill="#0f172a" />
-              <rect x="66" y="66" width="8" height="8" fill="#0f172a" />
-              <rect x="78" y="66" width="8" height="8" fill="#0f172a" />
-              <rect x="90" y="66" width="4" height="4" fill="#0f172a" />
-              
-              <rect x="40" y="78" width="8" height="8" fill="#0f172a" />
-              <rect x="52" y="78" width="8" height="8" fill="#0f172a" />
-              <rect x="66" y="80" width="10" height="10" fill="#0f172a" />
-              <rect x="80" y="80" width="8" height="8" fill="#0f172a" />
-              <rect x="90" y="86" width="4" height="4" fill="#0f172a" />
-            </svg>
+            {/* Real ZATCA TLV Base64 QR code */}
+            {qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt="ZATCA Compliant QR"
+                className="w-22 h-22 shrink-0 bg-white p-1 border border-slate-300 rounded shadow-xs object-contain"
+              />
+            ) : (
+              <div className="w-22 h-22 shrink-0 bg-slate-100 flex items-center justify-center border border-slate-300 rounded text-[9px] text-slate-500 font-mono text-center p-1">
+                ZATCA QR
+              </div>
+            )}
 
             <div className="text-[10px] leading-relaxed text-slate-800 font-medium space-y-1">
               <p className="text-emerald-700 font-bold flex items-center gap-1">

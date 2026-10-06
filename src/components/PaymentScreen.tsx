@@ -1,8 +1,12 @@
 import { useLanguage } from '../context/LanguageContext';
 import React, { useState, useEffect } from 'react';
-import { Camera, Check, ArrowLeft, RefreshCw, AlertCircle } from 'lucide-react';
+import { Camera, Check, ArrowLeft, RefreshCw, AlertCircle, X, Image as ImageIcon } from 'lucide-react';
 import { ViewState } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
+import { isPaymentSplitBalanced, convertToSAR, roundTo } from '../services/finance';
+import { promptDeviceImageCapture, CapturedDocument } from '../services/camera';
+import { saveAttachmentPersistent } from '../services/storage';
+import { logAuditEvent } from '../services/audit';
 
 interface PaymentScreenProps {
   totalAmount: number;
@@ -24,58 +28,97 @@ export default function PaymentScreen({
   const [includePayment, setIncludePayment] = useState(true);
   const [cashPayment, setCashPayment] = useState(0);
   const [bankPayment, setBankPayment] = useState(0);
-  const [transactionRef, setTransactionRef] = useState('TXN-ERP-2026-908');
-  const [proofCaptured, setProofCaptured] = useState(false);
+  const [transactionRef, setTransactionRef] = useState('');
+  const [proofDocument, setProofDocument] = useState<CapturedDocument | null>(null);
+  const [validationError, setValidationError] = useState('');
 
   // Set default split allocation on amount load
   useEffect(() => {
     if (totalAmount > 0) {
-      const convertedTotal = totalAmount * activeCurrency.rate;
-      const cash = parseFloat((convertedTotal * 0.3).toFixed(activeCurrency.decimals));
-      const bank = parseFloat((convertedTotal - cash).toFixed(activeCurrency.decimals));
+      const convertedTotal = roundTo(totalAmount * activeCurrency.rate, activeCurrency.decimals);
+      const cash = roundTo(convertedTotal * 0.5, activeCurrency.decimals);
+      const bank = roundTo(convertedTotal - cash, activeCurrency.decimals);
       setCashPayment(cash);
       setBankPayment(bank);
+      setTransactionRef(`TXN-${Date.now().toString().slice(-6)}`);
     }
   }, [totalAmount, activeCurrency]);
 
-  const convertedTotal = totalAmount * activeCurrency.rate;
-  const remainingBalance = convertedTotal - (cashPayment + bankPayment);
-  const isBalanced = Math.abs(remainingBalance) < (activeCurrency.decimals === 3 ? 0.005 : 0.05);
+  const convertedTotal = roundTo(totalAmount * activeCurrency.rate, activeCurrency.decimals);
+  const splitCheck = isPaymentSplitBalanced(convertedTotal, cashPayment, bankPayment, 0, activeCurrency.decimals);
+  const isBalanced = splitCheck.balanced;
+  const remainingBalance = splitCheck.difference;
 
   const handleSplitEvenly = () => {
-    const half = parseFloat((convertedTotal / 2).toFixed(activeCurrency.decimals));
+    const half = roundTo(convertedTotal / 2, activeCurrency.decimals);
     setCashPayment(half);
-    setBankPayment(parseFloat((convertedTotal - half).toFixed(activeCurrency.decimals)));
+    setBankPayment(roundTo(convertedTotal - half, activeCurrency.decimals));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleCaptureReceipt = async () => {
+    const doc = await promptDeviceImageCapture(true);
+    if (doc) {
+      setProofDocument(doc);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError('');
+
     if (includePayment && !isBalanced) {
-      alert(`Payment allocations must match total order amount. Remaining: ${activeCurrency.symbol} ${remainingBalance.toFixed(activeCurrency.decimals)}`);
-      return;
-    }
-    if (includePayment && bankPayment > 0 && !transactionRef) {
-      alert('Bank transfer details require a Transaction Reference number.');
+      setValidationError(`Payment allocations must match total order amount. Remaining difference: ${activeCurrency.symbol} ${remainingBalance.toFixed(activeCurrency.decimals)}`);
       return;
     }
 
-    // Map input amounts back to SAR for standard unified system registry
-    const cashInSAR = cashPayment / activeCurrency.rate;
-    const bankInSAR = bankPayment / activeCurrency.rate;
+    if (includePayment && bankPayment > 0 && !transactionRef.trim()) {
+      setValidationError('Bank transfer requires a valid Transaction Reference number.');
+      return;
+    }
 
-    // Submit invoice log
-    const invoiceId = `SINV-2026-${Math.floor(40000 + Math.random() * 9000)}`;
+    // Map input amounts back to SAR for unified ledger registry
+    const cashInSAR = convertToSAR(cashPayment, activeCurrency.rate, 2);
+    const bankInSAR = convertToSAR(bankPayment, activeCurrency.rate, 2);
+
+    const invoiceId = `SINV-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
+    const formattedDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    // Persist proof attachment if captured
+    if (proofDocument) {
+      saveAttachmentPersistent({
+        id: proofDocument.id,
+        entityType: 'payment_proof',
+        entityId: invoiceId,
+        fileName: proofDocument.name,
+        fileSize: proofDocument.sizeBytes,
+        mimeType: proofDocument.mimeType,
+        dataUrl: proofDocument.dataUrl,
+        createdAt: proofDocument.capturedAt
+      });
+    }
+
     const invoiceDetails = {
       id: invoiceId,
-      date: '10 Jun 2026',
+      date: formattedDate,
       subtotal: subtotalAmount,
       tax: taxAmount,
       total: totalAmount,
       cashReceived: cashInSAR,
       bankReceived: bankInSAR,
-      txRef: transactionRef,
-      hasProof: proofCaptured
+      txRef: transactionRef.trim(),
+      hasProof: !!proofDocument,
+      proofDataUrl: proofDocument?.dataUrl,
+      currencyCode: activeCurrency.code
     };
+
+    await logAuditEvent('PAYMENT_CREATED', {
+      invoiceId,
+      total: totalAmount,
+      cashReceived: cashInSAR,
+      bankReceived: bankInSAR,
+      txRef: transactionRef,
+      hasProof: !!proofDocument
+    });
 
     onSubmitInvoice(invoiceDetails);
     onNavigate('invoice_viewer');
@@ -97,6 +140,13 @@ export default function PaymentScreen({
         </div>
       </div>
 
+      {validationError && (
+        <div className="bg-rose-500/10 text-rose-400 border border-rose-500/25 font-mono text-xs p-3.5 rounded-xl flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{validationError}</span>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Card 1: Invoice Total display */}
         <div className="bg-slate-950/60 border border-white/10 rounded-2xl p-5 space-y-4 shadow-lg backdrop-blur-md">
@@ -108,8 +158,10 @@ export default function PaymentScreen({
               </h2>
             </div>
             <div className="text-right">
-              <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-slate-400 block">{t("Ledger ID")}</span>
-              <span className="text-[10px] font-mono font-bold text-white bg-slate-800 border border-white/15 px-2.5 py-1 rounded-md mt-1.5 inline-block uppercase tracking-wider">{t("INV-26-084")}</span>
+              <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-slate-400 block">{t("Tax Standard")}</span>
+              <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md mt-1.5 inline-block uppercase tracking-wider">
+                15% VAT INCL.
+              </span>
             </div>
           </div>
 
@@ -130,7 +182,7 @@ export default function PaymentScreen({
           </div>
         </div>
 
-        {/* Card 2: Split Payment Allocation (shows if includePayment is true) */}
+        {/* Card 2: Split Payment Allocation */}
         {includePayment && (
           <div className="bg-slate-950/60 border border-white/10 rounded-2xl p-5 space-y-4 shadow-lg backdrop-blur-md">
             <div className="flex justify-between items-center border-b border-white/10 pb-2.5">
@@ -140,7 +192,8 @@ export default function PaymentScreen({
                 onClick={handleSplitEvenly}
                 className="text-[9px] font-mono font-bold text-emerald-400 hover:text-emerald-300 uppercase tracking-widest cursor-pointer flex items-center gap-1 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20"
               >
-                <RefreshCw className="w-3 h-3" />{t("Split 50:50")}</button>
+                <RefreshCw className="w-3 h-3" />{t("Split 50:50")}
+              </button>
             </div>
 
             {/* Inputs */}
@@ -173,7 +226,7 @@ export default function PaymentScreen({
                 </div>
               </div>
 
-              {/* Nested Bank Details Block (visible if bankPayment possesses value) */}
+              {/* Nested Bank Details Block */}
               {bankPayment > 0 && (
                 <div className="bg-slate-900/60 border border-indigo-500/20 rounded-xl p-3.5 space-y-2">
                   <h4 className="text-[9px] font-mono font-bold uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
@@ -181,7 +234,7 @@ export default function PaymentScreen({
                   </h4>
                   <input
                     type="text"
-                    placeholder={t("Transaction ID / IBAN block...")}
+                    placeholder={t("Transaction ID / Reference number...")}
                     value={transactionRef}
                     onChange={(e) => setTransactionRef(e.target.value)}
                     className="w-full px-3 py-2.5 text-xs bg-slate-950 border border-white/10 rounded-lg text-emerald-400 font-mono shadow-inner"
@@ -202,7 +255,7 @@ export default function PaymentScreen({
                 }`}
               >
                 {!isBalanced && <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
-                {activeCurrency.symbol} {remainingBalance.toLocaleString(undefined, { minimumFractionDigits: activeCurrency.decimals, maximumFractionDigits: activeCurrency.decimals })}
+                {activeCurrency.symbol} {Math.abs(remainingBalance).toFixed(activeCurrency.decimals)}
               </span>
             </div>
           </div>
@@ -211,31 +264,38 @@ export default function PaymentScreen({
         {/* Card 3: Attach Proof */}
         <div className="bg-slate-950/60 border border-white/10 rounded-2xl p-5 space-y-3 shadow-lg">
           <div>
-            <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-indigo-400">// Diagnostic Attachment Proof</h3>
+            <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-indigo-400">// Payment Attachment Proof</h3>
             <p className="text-slate-500 text-[10px] mt-1">{t("Capture physically printed payment receipts or electronic transaction confirmation.")}</p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setProofCaptured(true)}
-            className={`w-full py-6 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-300 ${
-              proofCaptured
-                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
-                : 'bg-slate-900/45 hover:bg-slate-900 border-white/10 text-slate-400'
-            }`}
-          >
-            {proofCaptured ? (
-              <>
-                <Check className="w-6 h-6 stroke-[3] text-emerald-400" />
-                <span className="text-[9px] font-mono font-bold uppercase tracking-widest">{t("Bio-Receipt Confirmed")}</span>
-              </>
-            ) : (
-              <>
-                <Camera className="w-6 h-6 text-slate-500" />
-                <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-slate-300">{t("Scan Receipt Bill / camera raw")}</span>
-              </>
-            )}
-          </button>
+          {proofDocument ? (
+            <div className="relative border border-emerald-500/40 rounded-xl overflow-hidden bg-slate-900 p-3 text-center">
+              <img
+                src={proofDocument.dataUrl}
+                alt="Receipt Proof"
+                className="w-full h-32 object-cover rounded-lg"
+              />
+              <div className="mt-2 flex items-center justify-between text-xs font-mono text-emerald-400">
+                <span className="truncate">{proofDocument.name} ({(proofDocument.sizeBytes / 1024).toFixed(1)} KB)</span>
+                <button
+                  type="button"
+                  onClick={() => setProofDocument(null)}
+                  className="text-rose-400 hover:text-rose-300 ml-2 font-bold cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleCaptureReceipt}
+              className="w-full py-6 border-2 border-dashed border-white/10 hover:border-white/20 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all bg-slate-900/45 hover:bg-slate-900 text-slate-400"
+            >
+              <Camera className="w-6 h-6 text-slate-500" />
+              <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-slate-300">{t("Capture Payment Receipt (Camera / Upload)")}</span>
+            </button>
+          )}
         </div>
 
         {/* Action Button level */}
@@ -251,7 +311,8 @@ export default function PaymentScreen({
             type="submit"
             className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-mono font-bold rounded-xl text-[11px] uppercase tracking-widest flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-98 shadow-[0_4px_25px_rgba(99,102,241,0.25)] border border-white/10"
           >
-            <Check className="w-4 h-4" />{t("Submit Ledger Record")}</button>
+            <Check className="w-4 h-4" />{t("Generate & Confirm Invoice")}
+          </button>
         </div>
       </form>
     </div>

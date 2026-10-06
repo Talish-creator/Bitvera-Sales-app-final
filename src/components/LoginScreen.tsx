@@ -1,8 +1,10 @@
 import { useLanguage } from '../context/LanguageContext';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Briefcase, User, Lock, Eye, EyeOff, Sun, Moon, Fingerprint, AlertCircle } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
+import { authenticate, verifyBiometrics, isBiometricsRegistered, getCurrentSession } from '../services/auth';
+import { logAuditEvent } from '../services/audit';
 
 interface LoginScreenProps {
   onLogin: (username: string, role: string) => void;
@@ -11,9 +13,9 @@ interface LoginScreenProps {
 export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const { t, language, setLanguage } = useLanguage();
   const { theme, toggleTheme } = useTheme();
-  const [role, setRole] = useState('Salesman');
+  const [role, setRole] = useState<'Salesman' | 'Sales Supervisor' | 'Pre Seller'>('Salesman');
   const [username, setUsername] = useState('ramy');
-  const [password, setPassword] = useState('Password123');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -21,61 +23,65 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const [errorMsg, setErrorMsg] = useState('');
   const [bioScanning, setBioScanning] = useState(false);
 
-  const biometricAvailable = localStorage.getItem('bitvera_biometrics_registered') === 'true';
+  const biometricAvailable = isBiometricsRegistered();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Check for existing valid session on mount
+  useEffect(() => {
+    const existing = getCurrentSession();
+    if (existing) {
+      onLogin(existing.username, existing.role);
+    }
+  }, [onLogin]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== 'Password123') {
-      setErrorMsg(t("Incorrect password. This security node requires 'Password123'."));
+    if (!username.trim() || !password) {
+      setErrorMsg(t("Please provide both operator designation and authentication key."));
       return;
     }
+
     setErrorMsg('');
     setIsLoading(true);
-    // Simulate slight authentic network delay
-    setTimeout(() => {
+
+    try {
+      const result = await authenticate(username, password, role, rememberMe);
+      if (result.success && result.session) {
+        await logAuditEvent('LOGIN', { method: 'password', role: result.session.role }, result.session.userId, result.session.fullName);
+        onLogin(result.session.username, result.session.role);
+      } else {
+        setErrorMsg(result.error || t("Authentication failed."));
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || t("Authentication service unavailable."));
+    } finally {
       setIsLoading(false);
-      onLogin(username, role);
-    }, 600);
+    }
   };
 
   const handleBiometricLogin = async () => {
     setErrorMsg('');
     setBioScanning(true);
 
-    // 1. Try Native WebAuthn API
-    if (window.navigator.credentials && window.PublicKeyCredential) {
-      try {
-        const challenge = new Uint8Array([1, 2, 3, 4, 12, 13, 14, 15]);
-        const options: CredentialRequestOptions = {
-          publicKey: {
-            challenge,
-            rpId: window.location.hostname || "localhost",
-            userVerification: "preferred",
-            timeout: 5000,
-            allowCredentials: []
-          }
-        };
-        const credential = await window.navigator.credentials.get(options);
-        if (credential) {
-          setTimeout(() => {
-            setBioScanning(false);
-            onLogin(username, role);
-          }, 400);
-          return;
-        }
-      } catch (err) {
-        console.warn("[WebAuthn] Sandbox biometric access fell back to secure simulation.", err);
+    try {
+      const bioResult = await verifyBiometrics();
+      if (bioResult.success) {
+        // Biometric hardware success
+        const session = getCurrentSession();
+        const activeUser = session?.username || username || 'ramy';
+        await logAuditEvent('LOGIN', { method: 'biometric', role }, session?.userId || 'USR-101', session?.fullName || 'Ramy Ahmed');
+        onLogin(activeUser, role);
+      } else {
+        // Biometric failed or rejected: REMAIN LOCKED! Allow legitimate password entry.
+        setErrorMsg(bioResult.error || t("Biometric verification failed. Please authenticate using your password."));
       }
-    }
-
-    // 2. High-fidelity scan simulation fallback
-    setTimeout(() => {
+    } catch (err: any) {
+      setErrorMsg(err?.message || t("Biometric sensor error. Please use password."));
+    } finally {
       setBioScanning(false);
-      onLogin(username, role);
-    }, 1200);
+    }
   };
 
-  const isDark = theme === 'dark' || theme !== 'light'; // default to dark if not explicit light
+  const isDark = theme === 'dark' || theme !== 'light';
 
   return (
     <div className="w-full max-w-sm mx-auto p-4 flex flex-col justify-center min-h-[85vh] relative z-10 font-sans">
@@ -128,7 +134,6 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
       <div className="absolute bottom-20 left-4 w-8 h-8 border-b-2 border-l-2 border-indigo-500/40 pointer-events-none rounded-bl"></div>
       <div className="absolute bottom-20 right-4 w-8 h-8 border-b-2 border-r-2 border-emerald-500/40 pointer-events-none rounded-br"></div>
 
-
       <div className="bg-slate-950/70 border border-white/10 rounded-2xl p-6 shadow-[0_24px_80px_rgba(0,0,0,0.85)] backdrop-blur-xl relative overflow-hidden">
         
         {/* Subtle inner grid scan line pattern */}
@@ -149,7 +154,8 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         <div className="mb-5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg py-2 px-3 flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-wider font-mono text-emerald-400 font-semibold">{t("Security System")}</span>
           <span className="flex items-center gap-1.5 text-[9px] font-mono text-emerald-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>{t("ACTIVE SYNC")}</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>{t("ACTIVE SYNC")}
+          </span>
         </div>
 
         {/* Login Form */}
@@ -161,8 +167,8 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               <select
                 id="role"
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="block w-full px-3.5 py-2 text-sm bg-slate-900/80 border border-white/10 rounded-lg focus:border-emerald-555 focus:ring-1 focus:ring-emerald-500 text-white cursor-pointer"
+                onChange={(e) => setRole(e.target.value as any)}
+                className="block w-full px-3.5 py-2 text-sm bg-slate-900/80 border border-white/10 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-white cursor-pointer"
               >
                 <option value="Salesman">{t("Salesman (Authorized)")}</option>
                 <option value="Sales Supervisor">{t("Sales Supervisor")}</option>
@@ -181,11 +187,12 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               <input
                 id="username"
                 type="text"
-                placeholder={t("ramy")}
+                placeholder="ramy"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="block w-full pl-10 pr-4 py-2.5 text-sm bg-slate-900/80 border border-white/10 rounded-lg text-white font-mono placeholder:text-slate-600"
+                className="block w-full pl-10 pr-4 py-2.5 text-sm bg-slate-900/80 border border-white/10 rounded-lg text-white font-mono placeholder:text-slate-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 required
+                autoComplete="username"
               />
             </div>
           </div>
@@ -200,16 +207,17 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder={t("••••••••")}
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-10 pr-10 py-2.5 text-sm bg-slate-900/80 border border-white/10 rounded-lg text-white font-mono tracking-wider placeholder:text-slate-600"
+                className="block w-full pl-10 pr-10 py-2.5 text-sm bg-slate-900/80 border border-white/10 rounded-lg text-white font-mono tracking-wider placeholder:text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                 required
+                autoComplete="current-password"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-emerald-400 transition-colors focus:outline-none"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-emerald-400 transition-colors focus:outline-none cursor-pointer"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -228,9 +236,9 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               />
               <label htmlFor="remember-me" className="ml-2 text-slate-400 cursor-pointer select-none">{t("Auto-Link Console")}</label>
             </div>
-            <a href="#forgot" className="text-indigo-400 hover:text-indigo-300 transition-colors" onClick={(e) => e.preventDefault()}>
-              {t("Request Recovery")}
-            </a>
+            <span className="text-[10px] font-mono text-slate-500">
+              {t("Default key:")} <code className="text-emerald-400 font-bold select-all">SalesRamy@2026</code>
+            </span>
           </div>
 
           {/* Error Message */}
@@ -254,13 +262,15 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                 <svg className="animate-spin h-4 w-4 text-emerald-300" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>{t("Syncing Authorization...")}</span>
+                </svg>
+                {t("Verifying Credentials...")}
+              </span>
             ) : (
               t("Initialize Interface")
             )}
           </button>
 
-          {/* Quick Biometrics Key if registered */}
+          {/* Biometrics Login if registered */}
           {biometricAvailable && (
             <button
               type="button"
@@ -287,7 +297,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         </form>
 
         <div className="mt-8 text-center pt-2 border-t border-white/5 space-y-1.5 font-mono">
-          <p className="text-[9px] font-mono uppercase tracking-widest text-slate-500">{t("System Hash Code: CLOUD-K71 // STABLE")}</p>
+          <p className="text-[9px] font-mono uppercase tracking-widest text-slate-500">{t("System Security: SHA-256 Auth Node")}</p>
           <button
             type="button"
             onClick={() => setIsPrivacyOpen(true)}

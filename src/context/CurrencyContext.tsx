@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { roundTo, formatCurrencyValue, convertFromSAR } from '../services/finance';
 
 export interface CurrencyConfig {
   country: string;
@@ -89,15 +90,11 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const convert = (amountInSAR: number): number => {
-    return amountInSAR * activeCurrency.rate;
+    return convertFromSAR(amountInSAR, activeCurrency.rate, activeCurrency.decimals);
   };
 
   const formatRaw = (amountInCurrency: number): string => {
-    const formattedVal = amountInCurrency.toLocaleString(undefined, {
-      minimumFractionDigits: activeCurrency.decimals,
-      maximumFractionDigits: activeCurrency.decimals
-    });
-    return `${activeCurrency.symbol} ${formattedVal}`;
+    return formatCurrencyValue(amountInCurrency, activeCurrency.symbol, activeCurrency.decimals);
   };
 
   const format = (amountInSAR: number): string => {

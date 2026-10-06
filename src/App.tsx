@@ -1,15 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ViewState, Product, Customer, Visit, Order, LoadingRequest, InventoryClosingItem } from './types';
 import {
-  INITIAL_PRODUCTS,
-  INITIAL_CUSTOMERS,
-  INITIAL_VISITS,
-  INITIAL_ORDERS,
-  INITIAL_LOADING_REQUESTS,
-  INITIAL_CLOSING_INVENTORY
-} from './data';
+  getProducts,
+  getCustomers,
+  getVisits,
+  getOrders,
+  getLoadingRequests,
+  getClosingInventory,
+  addOrderPersistent,
+  addCustomerPersistent,
+  addVisitPersistent,
+  updateVisitPersistent,
+  addLoadingRequestPersistent,
+  updateProductStockPersistent,
+  getCurrentUser,
+  clearCurrentUser
+} from './services/storage';
+import { validateSession } from './services/auth';
 
-// Component imports
+// Standard Screen imports
 import LoginScreen from './components/LoginScreen';
 import DashboardScreen from './components/DashboardScreen';
 import RouteScreen from './components/RouteScreen';
@@ -25,8 +34,28 @@ import SettingsScreen from './components/SettingsScreen';
 import ReportsScreen from './components/ReportsScreen';
 import BiometricLockScreen from './components/BiometricLockScreen';
 
+// Enterprise Screen additions
+import Customer360Screen from './components/Customer360Screen';
+import CrmPipelineScreen from './components/CrmPipelineScreen';
+import TasksScreen from './components/TasksScreen';
+import RouteOptimizationScreen from './components/RouteOptimizationScreen';
+import ReceivablesScreen from './components/ReceivablesScreen';
+import ExpensesScreen from './components/ExpensesScreen';
+import DocumentCenterScreen from './components/DocumentCenterScreen';
+import SyncCenterScreen from './components/SyncCenterScreen';
+import AdminUsersScreen from './components/AdminUsersScreen';
+import AuditCenterScreen from './components/AuditCenterScreen';
+
+// Enterprise Modals & Quick Action Overlays
+import CommandPaletteModal from './components/CommandPaletteModal';
+import AiAssistantModal from './components/AiAssistantModal';
+import MobileQuickActions from './components/MobileQuickActions';
+
 // Persistent icons
-import { LayoutDashboard, ShoppingCart, TableProperties, Users, AreaChart, LogOut, Menu, User, Bell, Sun, Moon, Languages, Lock } from 'lucide-react';
+import { 
+  LayoutDashboard, ShoppingCart, TableProperties, Users, 
+  AreaChart, Menu, Bell, Sun, Moon, Lock, Search, Bot 
+} from 'lucide-react';
 import { useTheme } from './context/ThemeContext';
 import { useLanguage } from './context/LanguageContext';
 
@@ -38,13 +67,44 @@ export default function App() {
   const [isBiometricLocked, setIsBiometricLocked] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Global transactional simulation states
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
-  const [visits, setVisits] = useState<Visit[]>(INITIAL_VISITS);
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
-  const [loadingRequests, setLoadingRequests] = useState<LoadingRequest[]>(INITIAL_LOADING_REQUESTS);
-  const [closingInventory, setClosingInventory] = useState<InventoryClosingItem[]>(INITIAL_CLOSING_INVENTORY);
+  // Global Modals
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
+
+  // Authoritative persistent state loaded from storage
+  const [products, setProducts] = useState<Product[]>(() => getProducts());
+  const [customers, setCustomers] = useState<Customer[]>(() => getCustomers());
+  const [visits, setVisits] = useState<Visit[]>(() => getVisits());
+  const [orders, setOrders] = useState<Order[]>(() => getOrders());
+  const [loadingRequests, setLoadingRequests] = useState<LoadingRequest[]>(() => getLoadingRequests());
+  const [closingInventory, setClosingInventory] = useState<InventoryClosingItem[]>(() => getClosingInventory());
+
+  // Check existing session on load
+  useEffect(() => {
+    const existingUser = getCurrentUser();
+    if (existingUser) {
+      if (validateSession()) {
+        setUser({ username: existingUser.username, role: existingUser.role });
+        setCurrentView('dashboard');
+      } else {
+        clearCurrentUser();
+        setUser(null);
+        setCurrentView('login');
+      }
+    }
+  }, []);
+
+  // Global Ctrl+K / Cmd+K listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Selected payment checkout details
   const [activeCustomerForOrder, setActiveCustomerForOrder] = useState({ id: 'TC-1100', name: 'test Customers' });
@@ -62,43 +122,39 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    clearCurrentUser();
     setUser(null);
     setCurrentView('login');
   };
 
   // State update actions
   const handleAddRequest = (req: LoadingRequest) => {
-    setLoadingRequests([req, ...loadingRequests]);
+    addLoadingRequestPersistent(req);
+    setLoadingRequests(getLoadingRequests());
   };
 
   const handleAddCustomer = (cust: Customer) => {
-    setCustomers([cust, ...customers]);
-    // Create matching scheduled visit
+    addCustomerPersistent(cust);
     const newVisit: Visit = {
-      id: `v-${Math.floor(100 + Math.random() * 900)}`,
+      id: `v-${Date.now()}`,
       customer: cust,
       time: '12:00 PM',
       status: 'PENDING',
       distanceKm: 0.04,
       geofenceM: 200
     };
-    setVisits([...visits, newVisit]);
+    addVisitPersistent(newVisit);
+    setCustomers(getCustomers());
+    setVisits(getVisits());
   };
 
   const handleUpdateVisitStatus = (visitId: string, status: 'PENDING' | 'COMPLETED' | 'IN_PROGRESS') => {
-    setVisits(
-      visits.map((v) => {
-        if (v.id === visitId) {
-          return {
-            ...v,
-            status,
-            completedTime: status === 'COMPLETED' ? '08:30 AM' : undefined,
-            distanceKm: status === 'COMPLETED' ? 0.04 : v.distanceKm
-          };
-        }
-        return v;
-      })
-    );
+    updateVisitPersistent(visitId, {
+      status,
+      completedTime: status === 'COMPLETED' ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
+      distanceKm: status === 'COMPLETED' ? 0.04 : undefined
+    });
+    setVisits(getVisits());
   };
 
   const handleSetOrderAmount = (
@@ -114,7 +170,6 @@ export default function App() {
   const handleSubmitInvoice = (invoiceDetails: any) => {
     setLatestInvoice(invoiceDetails);
 
-    // Save newly created transaction into ERP orders array
     const newOrder: Order = {
       id: invoiceDetails.id,
       customerName: activeCustomerForOrder.name,
@@ -122,20 +177,28 @@ export default function App() {
       date: invoiceDetails.date,
       total: invoiceDetails.total,
       status: 'Completed',
-      items: orderItemsList
+      paymentMethod: (invoiceDetails.cashReceived ?? 0) > 0 && (invoiceDetails.bankReceived ?? 0) > 0
+        ? 'Split'
+        : (invoiceDetails.cashReceived ?? 0) > 0 ? 'Cash' : 'Bank Transfer',
+      items: orderItemsList,
+      cashReceived: invoiceDetails.cashReceived,
+      bankReceived: invoiceDetails.bankReceived
     };
 
-    setOrders([newOrder, ...orders]);
+    addOrderPersistent(newOrder);
 
-    // Also mark the visit corresponding to this customer as fully Completed
-    setVisits(
-      visits.map((v) => {
-        if (v.customer.id === activeCustomerForOrder.id) {
-          return { ...v, status: 'COMPLETED' };
-        }
-        return v;
-      })
-    );
+    setOrders(getOrders());
+    setProducts(getProducts());
+    setClosingInventory(getClosingInventory());
+
+    const targetVisit = visits.find((v) => v.customer.id === activeCustomerForOrder.id);
+    if (targetVisit) {
+      updateVisitPersistent(targetVisit.id, {
+        status: 'COMPLETED',
+        completedTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+      setVisits(getVisits());
+    }
   };
 
   const handleSelectCustomerForOrder = (customerId: string, customerName: string) => {
@@ -146,15 +209,14 @@ export default function App() {
   const resolveActiveNavTab = (): 'dashboard' | 'sales' | 'inventory' | 'crm' | 'reports' | '' => {
     if (currentView === 'login') return '';
     if (currentView === 'dashboard') return 'dashboard';
-    if (['today_route', 'add_customer', 'create_order', 'sales_invoice'].includes(currentView)) return 'sales';
+    if (['today_route', 'add_customer', 'create_order', 'sales_invoice', 'route_optimization'].includes(currentView)) return 'sales';
     if (['van_stock', 'loading_requests', 'daily_closing'].includes(currentView)) return 'inventory';
-    if (currentView === 'settings') return 'crm';
-    if (['reports', 'invoice_viewer'].includes(currentView)) return 'reports';
+    if (['customer_360', 'crm_pipeline', 'tasks', 'receivables', 'settings', 'admin_users'].includes(currentView)) return 'crm';
+    if (['reports', 'invoice_viewer', 'expenses', 'document_center', 'sync_center', 'audit_center'].includes(currentView)) return 'reports';
     return 'dashboard';
   };
 
   const activeTab = resolveActiveNavTab();
-
   const isDark = theme === 'dark';
 
   return (
@@ -165,6 +227,30 @@ export default function App() {
         <BiometricLockScreen
           onUnlock={() => setIsBiometricLocked(false)}
           onLogout={handleLogout}
+        />
+      )}
+
+      {/* Global Command Palette (Ctrl+K) */}
+      <CommandPaletteModal
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onNavigate={setCurrentView}
+        onSelectCustomer={(c) => setActiveCustomerForOrder({ id: c.id, name: c.name })}
+      />
+
+      {/* Grounded AI Sales Assistant Modal */}
+      <AiAssistantModal
+        isOpen={isAiAssistantOpen}
+        onClose={() => setIsAiAssistantOpen(false)}
+        onNavigate={setCurrentView}
+      />
+
+      {/* Mobile Floating Quick Action Speed Dial */}
+      {user && currentView !== 'login' && (
+        <MobileQuickActions
+          onNavigate={setCurrentView}
+          onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         />
       )}
 
@@ -179,13 +265,14 @@ export default function App() {
         />
       )}
       
-      {/* Dynamic Persistent App Header Row (Show only if user is logged in) */}
+      {/* App Header Row */}
       {user && (
-        <header className={`sticky top-0 left-0 right-0 ${isDark ? 'bg-slate-950/70 border-b border-white/10' : 'bg-white/80 border-b border-slate-200 shadow-xs'} backdrop-blur-md py-3.5 px-4 z-40 max-w-lg mx-auto flex items-center justify-between transition-colors`}>
+        <header className={`sticky top-0 left-0 right-0 ${isDark ? 'bg-slate-950/70 border-b border-white/10' : 'bg-white/80 border-b border-slate-200 shadow-xs'} backdrop-blur-md py-3 px-4 z-40 max-w-lg mx-auto flex items-center justify-between transition-colors`}>
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => setIsSidebarOpen(true)}
               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${isDark ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-black/5 text-slate-700'}`}
+              title="Open Navigation"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -197,66 +284,68 @@ export default function App() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2 select-none">
-            {/* Quick Access Theme Toggle Switch */}
+          <div className="flex items-center gap-1.5 select-none">
+            {/* Global Search Button */}
+            <button
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${isDark ? 'hover:bg-white/10 text-indigo-400 hover:text-indigo-300' : 'hover:bg-black/5 text-indigo-600'}`}
+              title="Search & Commands (Ctrl+K)"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+
+            {/* AI Assistant Button */}
+            <button
+              onClick={() => setIsAiAssistantOpen(true)}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${isDark ? 'hover:bg-white/10 text-emerald-400 hover:text-emerald-300' : 'hover:bg-black/5 text-emerald-600'}`}
+              title={t("AI Sales Assistant")}
+            >
+              <Bot className="w-4 h-4" />
+            </button>
+
+            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${isDark ? 'hover:bg-white/10 text-slate-300 hover:text-white' : 'hover:bg-black/5 text-slate-700 hover:text-slate-950'}`}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${isDark ? 'hover:bg-white/10 text-slate-300 hover:text-white' : 'hover:bg-black/5 text-slate-700'}`}
               title={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}
             >
-              {isDark ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-indigo-500" />}
+              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-500" />}
             </button>
 
-            {/* Padlock button to lock the terminal instantly */}
+            {/* Padlock button */}
             <button
               onClick={() => setIsBiometricLocked(true)}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${isDark ? 'hover:bg-white/10 text-[#10b981] hover:text-emerald-400' : 'hover:bg-black/5 text-emerald-600 hover:text-emerald-800'}`}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${isDark ? 'hover:bg-white/10 text-[#10b981] hover:text-emerald-400' : 'hover:bg-black/5 text-emerald-600'}`}
               title={t("Lock Safe Terminal")}
             >
-              <Lock className="w-5 h-5" />
+              <Lock className="w-4 h-4" />
             </button>
 
-            <button
-              onClick={() => alert(`Active notifications for Ramy Ahmed:\n- 3 critical stock alerts pending.\n- PR-2026-00488 loading approval request sent.`)}
-              className={`p-1.5 rounded-lg transition-colors relative cursor-pointer ${isDark ? 'hover:bg-white/10 text-indigo-400 hover:text-indigo-300' : 'hover:bg-black/5 text-indigo-600 hover:text-indigo-800'}`}
-            >
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full"></span>
-            </button>
-
-            {/* Premium segmented choice Language Toggle Pill right beside the photo */}
-            <div className={`flex items-center rounded-lg p-0.5 border ${isDark ? 'border-white/10 bg-slate-900/50' : 'border-slate-200 bg-slate-100'} text-xs overflow-hidden select-none`}>
+            {/* Language Pill */}
+            <div className={`flex items-center rounded-lg p-0.5 border ${isDark ? 'border-white/10 bg-slate-900/50' : 'border-slate-200 bg-slate-100'} text-xs overflow-hidden`}>
               <button
                 onClick={() => setLanguage('en')}
-                className={`px-2 py-1 rounded-md transition-all cursor-pointer font-bold ${
-                  language === 'en'
-                    ? (isDark ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white text-indigo-700 shadow-xs')
-                    : 'text-slate-500 hover:text-slate-300'
-                }`}
+                className={`px-1.5 py-0.5 rounded text-[11px] font-bold cursor-pointer ${language === 'en' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}
               >
                 EN
               </button>
               <button
                 onClick={() => setLanguage('ar')}
-                className={`px-2 py-1 rounded-md transition-all cursor-pointer font-bold ${
-                  language === 'ar'
-                    ? (isDark ? 'bg-indigo-650 text-white shadow-xs' : 'bg-white text-indigo-700 shadow-xs')
-                    : 'text-slate-500 hover:text-slate-350'
-                }`}
+                className={`px-1.5 py-0.5 rounded text-[11px] font-bold cursor-pointer ${language === 'ar' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}
               >
                 عربي
               </button>
             </div>
 
-            {/* Click avatar to trigger quick settings navigate */}
+            {/* Profile Avatar */}
             <div
               onClick={() => setCurrentView('settings')}
-              className={`w-8.5 h-8.5 rounded-full overflow-hidden border ${isDark ? 'border-white/25 hover:border-indigo-400' : 'border-slate-300 hover:border-indigo-600'} shadow-xs cursor-pointer select-none transition-all active:scale-95 ml-1`}
-              title="Click to manage settings"
+              className={`w-7.5 h-7.5 rounded-full overflow-hidden border ${isDark ? 'border-white/25 hover:border-indigo-400' : 'border-slate-300 hover:border-indigo-600'} shadow-xs cursor-pointer select-none transition-all active:scale-95 ml-0.5`}
+              title="Settings"
             >
               <img
                 src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=100&h=100"
-                alt="Ahmed Profile"
+                alt="Profile"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
               />
@@ -274,9 +363,11 @@ export default function App() {
 
         {currentView === 'dashboard' && (
           <DashboardScreen
-            userName="Ahmed"
+            userName={user?.username || 'Representative'}
+            userRole={user?.role}
             onNavigate={setCurrentView}
             orders={orders}
+            onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
           />
         )}
 
@@ -289,9 +380,76 @@ export default function App() {
           />
         )}
 
+        {currentView === 'route_optimization' && (
+          <RouteOptimizationScreen
+            onNavigate={setCurrentView}
+            onSelectCustomerForOrder={handleSelectCustomerForOrder}
+          />
+        )}
+
         {currentView === 'add_customer' && (
           <CustomerFormScreen
             onAddCustomer={handleAddCustomer}
+            onNavigate={setCurrentView}
+          />
+        )}
+
+        {currentView === 'customer_360' && (
+          <Customer360Screen
+            onNavigate={setCurrentView}
+            onSelectCustomerForOrder={handleSelectCustomerForOrder}
+            initialCustomerId={activeCustomerForOrder.id}
+          />
+        )}
+
+        {currentView === 'crm_pipeline' && (
+          <CrmPipelineScreen
+            onNavigate={setCurrentView}
+            onSelectCustomer={(c) => {
+              setActiveCustomerForOrder({ id: c.id, name: c.name });
+            }}
+          />
+        )}
+
+        {currentView === 'tasks' && (
+          <TasksScreen
+            onNavigate={setCurrentView}
+          />
+        )}
+
+        {currentView === 'receivables' && (
+          <ReceivablesScreen
+            onNavigate={setCurrentView}
+            onSelectCustomerForOrder={handleSelectCustomerForOrder}
+          />
+        )}
+
+        {currentView === 'expenses' && (
+          <ExpensesScreen
+            onNavigate={setCurrentView}
+          />
+        )}
+
+        {currentView === 'document_center' && (
+          <DocumentCenterScreen
+            onNavigate={setCurrentView}
+          />
+        )}
+
+        {currentView === 'sync_center' && (
+          <SyncCenterScreen
+            onNavigate={setCurrentView}
+          />
+        )}
+
+        {currentView === 'admin_users' && (
+          <AdminUsersScreen
+            onNavigate={setCurrentView}
+          />
+        )}
+
+        {currentView === 'audit_center' && (
+          <AuditCenterScreen
             onNavigate={setCurrentView}
           />
         )}
@@ -329,14 +487,9 @@ export default function App() {
           <InventoryScreen
             products={products}
             onUpdateStock={(id, stock) => {
-              setProducts(
-                products.map((p) => {
-                  if (p.id === id) {
-                    return { ...p, stock };
-                  }
-                  return p;
-                })
-              );
+              updateProductStockPersistent(id, stock);
+              setProducts(getProducts());
+              setClosingInventory(getClosingInventory());
             }}
           />
         )}
@@ -370,9 +523,9 @@ export default function App() {
 
       </main>
 
-      {/* Persistent Bottom Tab Navigation Bar (Show only if logged in) */}
+      {/* Persistent Bottom Tab Navigation Bar */}
       {user && (
-        <nav className={`fixed bottom-4 left-4 right-4 ${isDark ? 'bg-slate-950/70 border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.6)]' : 'bg-white/90 border-slate-200/80 shadow-[0_12px_40px_rgba(0,0,0,0.08)]'} backdrop-blur-lg border z-40 max-w-[calc(100%-2rem)] md:max-w-md mx-auto py-2 px-1.5 rounded-2xl transition-all`}>
+        <nav className={`fixed bottom-4 left-4 right-4 ${isDark ? 'bg-slate-950/70 border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.6)]' : 'bg-white/90 border-slate-200/80 shadow-[0_12px_40px_rgba(0,0,0,0.08)]'} backdrop-blur-lg border z-30 max-w-[calc(100%-2rem)] md:max-w-md mx-auto py-2 px-1.5 rounded-2xl transition-all`}>
           <div className="flex justify-between items-center text-center">
             
             {/* Tab 1: Dashboard */}
@@ -394,10 +547,7 @@ export default function App() {
 
             {/* Tab 2: Sales */}
             <button
-              onClick={() => {
-                // If checking in, return to checkout/create order! Else Route screen
-                setCurrentView('today_route');
-              }}
+              onClick={() => setCurrentView('today_route')}
               className={`flex-1 flex flex-col items-center gap-1 cursor-pointer transition-all ${
                 activeTab === 'sales' ? 'text-[#10b981]' : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-900')
               }`}
@@ -431,7 +581,7 @@ export default function App() {
 
             {/* Tab 4: CRM */}
             <button
-              onClick={() => setCurrentView('settings')}
+              onClick={() => setCurrentView('crm_pipeline')}
               className={`flex-1 flex flex-col items-center gap-1 cursor-pointer transition-all ${
                 activeTab === 'crm' ? 'text-[#10b981]' : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-900')
               }`}

@@ -30,13 +30,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   useEffect(() => {
-    // Synchronize HTML/Body class names to align utility frameworks
+    // Synchronize HTML/Body class names without overwriting other classes
     const root = document.documentElement;
     root.classList.remove('theme-light', 'theme-dark');
     root.classList.add(`theme-${theme}`);
     
-    // Also set on body to cover custom styles
-    document.body.className = `theme-${theme}`;
+    document.body.classList.remove('theme-light', 'theme-dark');
+    document.body.classList.add(`theme-${theme}`);
   }, [theme]);
 
   return (

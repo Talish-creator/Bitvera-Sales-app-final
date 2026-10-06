@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Search, Scan, Minus, Plus, AlertCircle, ShoppingCart } from 'lucide-react';
 import { Product, ViewState } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
+import { calculateCart } from '../services/finance';
 
 interface CreateOrderScreenProps {
   products: Product[];
@@ -53,7 +54,7 @@ export default function CreateOrderScreen({
     setCart(nextCart);
   };
 
-  // Calculations
+  // Calculations using authoritative decimal-safe financial calculation service
   const selectedItems = Object.entries(cart)
     .map(([pId, qty]) => {
       const p = products.find((prod) => prod.id === pId);
@@ -61,15 +62,20 @@ export default function CreateOrderScreen({
     })
     .filter((item) => item.product !== undefined) as { product: Product; qty: number }[];
 
-  const subtotal = selectedItems.reduce((acc, current) => {
-    return acc + current.product.price * current.qty;
-  }, 0);
+  const cartCalc = calculateCart(
+    selectedItems.map((item) => ({
+      name: item.product.name,
+      qty: item.qty,
+      price: item.product.price,
+      sku: item.product.sku
+    })),
+    taxTemplate
+  );
 
-  const isVat15 = taxTemplate === 'Sales VAT 15%';
-  const tax = isVat15 ? subtotal * 0.15 : 0;
-  const total = subtotal + tax;
-
-  const totalItemCount = selectedItems.reduce((acc, cur) => acc + cur.qty, 0);
+  const subtotal = cartCalc.subtotal;
+  const tax = cartCalc.taxAmount;
+  const total = cartCalc.total;
+  const totalItemCount = cartCalc.itemCount;
 
   const handleProceedToPayment = () => {
     if (total <= 0) {

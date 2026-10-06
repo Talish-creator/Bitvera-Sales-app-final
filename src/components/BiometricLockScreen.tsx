@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
-import { Shield, Fingerprint, Lock, Zap, RefreshCw, AlertCircle, Sparkles, Smile } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
-import { NativeBiometric } from '@capgo/capacitor-native-biometric';
+import { Fingerprint, AlertCircle, Smile } from 'lucide-react';
+import { verifyBiometrics, authenticate, getCurrentSession } from '../services/auth';
 
 interface BiometricLockScreenProps {
   onUnlock: () => void;
@@ -10,108 +9,72 @@ interface BiometricLockScreenProps {
 }
 
 export default function BiometricLockScreen({ onUnlock, onLogout }: BiometricLockScreenProps) {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [scanning, setScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
   const [scanType, setScanType] = useState<'fingerprint' | 'face'>('fingerprint');
   const [errorMsg, setErrorMsg] = useState('');
   const [success, setSuccess] = useState(false);
   const [fallbackPassword, setFallbackPassword] = useState('');
   const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
 
   useEffect(() => {
-    // Automatically trigger scan on load
+    // Automatically trigger biometric verification on screen mount
     handleBiometricRequest();
   }, []);
 
   const handleBiometricRequest = async () => {
     setErrorMsg('');
-    setScanProgress(0);
     setScanning(true);
 
-    const isRtl = language === 'ar';
-
-    // 0. Try Native Capacitor Biometric Plugin (iOS/Android)
-    if (Capacitor.isNativePlatform()) {
-      try {
-        const result = await NativeBiometric.isAvailable();
-        if (result.isAvailable) {
-          await NativeBiometric.verifyIdentity({
-            reason: t("Unlock terminal"),
-            title: t("Authentication Required"),
-            subtitle: t("Bitvera Secure Login"),
-            description: t("Scan your biometric signature to proceed")
-          });
-          triggerSuccessAnimation();
-          return;
-        }
-      } catch (err: any) {
-        console.warn("[NativeBiometric Debug] Native biometric rejected or failed:", err);
-        // Fallback to simulation if native fails
+    try {
+      const result = await verifyBiometrics();
+      if (result.success) {
+        setSuccess(true);
+        setTimeout(() => {
+          onUnlock();
+        }, 600);
+      } else {
+        // Biometric failed or rejected: REMAIN LOCKED!
+        setErrorMsg(result.error || t("Biometric verification failed. Please authenticate using password."));
       }
+    } catch (err: any) {
+      setErrorMsg(err?.message || t("Biometric hardware unavailable."));
+    } finally {
+      setScanning(false);
     }
-
-    // 1. Try Native WebAuthn API (Web Browser)
-    if (window.navigator.credentials && window.PublicKeyCredential) {
-      try {
-        const challenge = new Uint8Array([1, 2, 3, 4, 12, 13, 14, 15]);
-        const options: CredentialRequestOptions = {
-          publicKey: {
-            challenge,
-            rpId: window.location.hostname || "localhost",
-            userVerification: "preferred",
-            timeout: 5000,
-            allowCredentials: []
-          }
-        };
-
-        // This will prompt device-native Touch ID, Face ID, or Windows Hello
-        const credential = await window.navigator.credentials.get(options);
-        if (credential) {
-          triggerSuccessAnimation();
-          return;
-        }
-      } catch (err: any) {
-        console.warn("[WebAuthn Debug] Native WebAuthn get rejected or skipped inside sandboxed iframe:", err);
-        // We will fallback to high-fidelity biometric scan simulation if browser or iframe blocks native WebAuthn
-      }
-    }
-
-    // 2. High-Fidelity Biometric Simulation Fallback (with realistic timing & scanning progress)
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 5;
-      setScanProgress(progress);
-      if (progress >= 100) {
-        clearInterval(interval);
-        triggerSuccessAnimation();
-      }
-    }, 70);
   };
 
-  const triggerSuccessAnimation = () => {
-    setScanning(false);
-    setScanProgress(100);
-    setSuccess(true);
-    // Dynamic brief successful sync delay
-    setTimeout(() => {
-      onUnlock();
-    }, 850);
-  };
-
-  const handleVerifyPasswordFallback = (e: React.FormEvent) => {
+  const handleVerifyPasswordFallback = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (fallbackPassword === 'Password123') {
-      triggerSuccessAnimation();
-    } else {
-      setErrorMsg(t("Invalid authentication key. Please use 'Password123'."));
+    if (!fallbackPassword) return;
+
+    setIsVerifyingPassword(true);
+    setErrorMsg('');
+
+    try {
+      const session = getCurrentSession();
+      const username = session?.username || 'ramy';
+      const role = session?.role || 'Salesman';
+
+      const authResult = await authenticate(username, fallbackPassword, role);
+      if (authResult.success) {
+        setSuccess(true);
+        setTimeout(() => {
+          onUnlock();
+        }, 400);
+      } else {
+        setErrorMsg(authResult.error || t("Invalid authentication key."));
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || t("Authentication failed."));
+    } finally {
+      setIsVerifyingPassword(false);
     }
   };
-
-  const isRtl = language === 'ar';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950 backdrop-blur-xl animate-fadeIn font-sans">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-2xl animate-fadeIn font-sans">
       
       {/* Laser line effect only visible on scanning */}
       {scanning && (
@@ -154,7 +117,6 @@ export default function BiometricLockScreen({ onUnlock, onLogout }: BiometricLoc
             <div className="absolute inset-8 rounded-full pointer-events-none">
               <div className="absolute inset-0 rounded-full bg-indigo-500/10 border border-indigo-500/30 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite]" />
               <div className="absolute inset-0 rounded-full bg-emerald-500/10 border border-emerald-500/30 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite] [animation-delay:0.6s]" />
-              <div className="absolute inset-0 rounded-full bg-indigo-500/10 border border-indigo-500/20 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite] [animation-delay:1.2s]" />
             </div>
           )}
 
@@ -171,34 +133,11 @@ export default function BiometricLockScreen({ onUnlock, onLogout }: BiometricLoc
             }`}
           >
             {scanType === 'fingerprint' ? (
-              <Fingerprint className={`w-10 h-10 ${scanning ? 'animate-pulse' : ''}`} />
+              <Fingerprint className={`w-10 h-10 ${scanning ? 'animate-pulse text-indigo-400' : ''}`} />
             ) : (
-              <Smile className={`w-10 h-10 ${scanning ? 'animate-pulse' : ''}`} />
+              <Smile className={`w-10 h-10 ${scanning ? 'animate-pulse text-indigo-400' : ''}`} />
             )}
           </button>
-
-          {/* Holographic scanner visual wave */}
-          {scanning && (
-            <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none">
-              <circle
-                cx="80"
-                cy="80"
-                r="64"
-                stroke="url(#progress-gradient)"
-                strokeWidth="2"
-                fill="transparent"
-                strokeDasharray="402"
-                strokeDashoffset={402 - (402 * scanProgress) / 100}
-                className="transition-all duration-75"
-              />
-              <defs>
-                <linearGradient id="progress-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#818cf8" />
-                  <stop offset="100%" stopColor="#34d399" />
-                </linearGradient>
-              </defs>
-            </svg>
-          )}
         </div>
 
         {/* Text descriptions and feedback */}
@@ -207,7 +146,7 @@ export default function BiometricLockScreen({ onUnlock, onLogout }: BiometricLoc
             {success 
               ? t("Biometric Signature Verified") 
               : scanning 
-                ? `${t("Configuring Secure Connection...")} (${scanProgress}%)` 
+                ? t("Scanning Biometric Enclave...") 
                 : t("Secure Terminal Lockout")}
           </h2>
           <p className="text-xs text-slate-400 font-medium leading-relaxed max-w-[280px] mx-auto">
@@ -219,7 +158,7 @@ export default function BiometricLockScreen({ onUnlock, onLogout }: BiometricLoc
           </p>
         </div>
 
-        {/* Sub-toggle selector for simulation demo */}
+        {/* Scan Type selector */}
         {!scanning && !success && (
           <div className="flex justify-center gap-4 bg-slate-900/60 p-1.5 rounded-xl border border-white/5 font-mono text-[9px] font-bold text-slate-400 w-fit mx-auto select-none">
             <button
@@ -254,17 +193,35 @@ export default function BiometricLockScreen({ onUnlock, onLogout }: BiometricLoc
             <div className="relative">
               <input
                 type="password"
-                placeholder={t("Enter Password123")}
+                placeholder="••••••••"
                 value={fallbackPassword}
                 onChange={(e) => setFallbackPassword(e.target.value)}
                 className="w-full bg-slate-900 border border-white/10 rounded-xl py-2 pl-3 pr-10 text-xs font-mono text-white focus:border-indigo-500"
                 required
+                disabled={isVerifyingPassword}
               />
               <button
                 type="submit"
+                disabled={isVerifyingPassword}
                 className="absolute right-1 top-1 bottom-1 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-bold font-mono uppercase transition-all cursor-pointer"
               >
-                {t("Verify")}
+                {isVerifyingPassword ? '...' : t("Verify")}
+              </button>
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-mono pt-1">
+              <button
+                type="button"
+                onClick={() => setShowPasswordInput(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ← {t("Back to Biometrics")}
+              </button>
+              <button
+                type="button"
+                onClick={onLogout}
+                className="text-red-400 hover:underline"
+              >
+                {t("Log Out")}
               </button>
             </div>
           </form>

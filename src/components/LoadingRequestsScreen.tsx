@@ -23,9 +23,9 @@ export default function LoadingRequestsScreen({ requests, onAddRequest }: Loadin
     e.preventDefault();
 
     const newReq: LoadingRequest = {
-      id: `PR-2026-00${Math.floor(400 + Math.random() * 100)}`,
+      id: `LR-${Date.now()}`,
       warehouse,
-      date: '10 Jun 2026',
+      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       items: itemsCount,
       status: 'Requested'
     };

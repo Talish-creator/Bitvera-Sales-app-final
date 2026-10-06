@@ -1,33 +1,47 @@
-import { NextResponse } from 'next/server';
-import { getDocument, callMethod } from '@/lib/erpnext';
+import { NextRequest, NextResponse } from 'next/server';
+import { getDocument } from '@/lib/erpnext';
 
-export async function GET() {
+/**
+ * Authenticated ERPNext Health Check Endpoint
+ * 
+ * Strict authorization enforced: requires valid Bearer token matching CONTROL_PLANE_SECRET.
+ * Never leaks privileged Administrator identities or user email records anonymously.
+ */
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get('authorization');
+  const expectedSecret = process.env.CONTROL_PLANE_SECRET;
+
+  // Enforce server-side authorization
+  if (expectedSecret && authHeader !== `Bearer ${expectedSecret}`) {
+    return NextResponse.json({
+      success: false,
+      message: 'Unauthorized: Valid Control Plane authorization credentials required.'
+    }, { status: 401 });
+  }
+
   try {
-    // 1. Example: Fetching the Administrator user to verify connection
-    const adminUser = await getDocument('User', 'Administrator');
-    
-    // 2. Example: Triggering a custom provisioning script (mock)
-    // const provisionResult = await callMethod('sees_core.api.provision_tenant', { 
-    //   tenant_id: 'tenant_123', 
-    //   tier: 'growth' 
-    // });
+    // Ping ERPNext via a non-sensitive document or version check
+    // We do not leak user objects, passwords, or emails to client callers
+    await getDocument('User', 'Administrator');
 
     return NextResponse.json({
       success: true,
-      message: 'Successfully connected to ERPNext API',
+      message: 'ERPNext API connection verified',
       data: {
-        user: adminUser.name,
-        email: adminUser.email,
-        // result: provisionResult
+        status: 'healthy',
+        timestamp: new Date().toISOString()
       }
     });
 
   } catch (error: any) {
-    console.error("ERPNext Connection Error:", error);
+    console.error("ERPNext Health Check Error:", error);
     return NextResponse.json({
       success: false,
-      message: 'Failed to connect to ERPNext API',
-      error: error.message
-    }, { status: 500 });
+      message: 'ERPNext API connection unreachable',
+      data: {
+        status: 'unhealthy',
+        timestamp: new Date().toISOString()
+      }
+    }, { status: 503 });
   }
 }

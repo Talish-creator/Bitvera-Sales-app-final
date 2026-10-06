@@ -1,9 +1,10 @@
-import { useLanguage } from '../context/LanguageContext';
+import { useLanguage, LanguageType } from '../context/LanguageContext';
 import React, { useState } from 'react';
 import { ArrowLeft, User, Shield, Key, Sliders, Globe, Star, ShoppingBag, Landmark, Utensils, Tag, LogOut, CheckCircle2, ChevronDown, Sun, Moon, Smartphone, Download, Info, Fingerprint, Lock } from 'lucide-react';
 import { ViewState } from '../types';
 import { useCurrency, SUPPORTED_CURRENCIES } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
+import { isBiometricsRegistered, registerBiometrics, removeBiometrics, changePassword } from '../services/auth';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
 
 interface SettingsScreenProps {
@@ -13,89 +14,48 @@ interface SettingsScreenProps {
 }
 
 export default function SettingsScreen({ onLogout, onNavigate, onLock }: SettingsScreenProps) {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
   const { activeCurrency, setActiveCurrencyCode } = useCurrency();
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [language, setLanguage] = useState('English (US)');
   const [saveNotification, setSaveNotification] = useState('');
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
 
   // Biometrics States & Event
-  const [bioEnabled, setBioEnabled] = useState(localStorage.getItem('bitvera_biometrics_registered') === 'true');
+  const [bioEnabled, setBioEnabled] = useState(() => isBiometricsRegistered());
   const [registeringBio, setRegisteringBio] = useState(false);
 
   const handleToggleBiometrics = async () => {
     if (bioEnabled) {
-      localStorage.removeItem('bitvera_biometrics_registered');
+      removeBiometrics();
       setBioEnabled(false);
       setSaveNotification(t("Biometric Quick Unlock disabled."));
       setTimeout(() => setSaveNotification(''), 3000);
     } else {
       setRegisteringBio(true);
-      
-      // 1. WebAuthn Registration API
-      if (window.navigator.credentials && window.PublicKeyCredential) {
-        try {
-          const challenge = new Uint8Array([1, 2, 3, 4, 12, 13, 14, 15]);
-          const options: CredentialCreationOptions = {
-            publicKey: {
-              challenge,
-              rp: { name: "Bitvera", id: window.location.hostname || "localhost" },
-              user: {
-                id: new Uint8Array([12, 24, 36, 48]),
-                name: "ramy",
-                displayName: "Ramy Ahmed"
-              },
-              pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-              authenticatorSelection: { userVerification: "preferred" },
-              timeout: 5000
-            }
-          };
-          const credential = await window.navigator.credentials.create(options);
-          if (credential) {
-            localStorage.setItem('bitvera_biometrics_registered', 'true');
-            setBioEnabled(true);
-            setSaveNotification(t("Biometrics successfully linked to this device secure enclave."));
-            setTimeout(() => setSaveNotification(''), 3000);
-            setRegisteringBio(false);
-            return;
-          }
-        } catch (err) {
-          console.warn("[WebAuthn] Sandboxed iframe blocked credentials create. Falling back to device security simulation...", err);
-        }
-      }
-
-      // 2. Fallback simulation
-      setTimeout(() => {
-        localStorage.setItem('bitvera_biometrics_registered', 'true');
+      const res = await registerBiometrics();
+      setRegisteringBio(false);
+      if (res.success) {
         setBioEnabled(true);
-        setSaveNotification(t("Biometrics linked successfully (Virtual Secure Sandbox mode)."));
-        setTimeout(() => setSaveNotification(''), 3000);
-        setRegisteringBio(false);
-      }, 1000);
+        setSaveNotification(t("Biometrics successfully linked to this device."));
+      } else {
+        setSaveNotification(res.error || t("Biometric registration unavailable or cancelled."));
+      }
+      setTimeout(() => setSaveNotification(''), 4000);
     }
   };
 
   // PWA/App Installer States & Detection
   const [deferredPrompt, setDeferredPrompt] = React.useState<any>(null);
   const [isInstalled, setIsInstalled] = React.useState(() => {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                         (window.navigator as any).standalone === true;
-    const localInstall = localStorage.getItem('bitvera_pwa_installed') === 'true';
-    return isStandalone || localInstall;
+    return window.matchMedia('(display-mode: standalone)').matches || 
+           (window.navigator as any).standalone === true;
   });
   const [activeInstructionTab, setActiveInstructionTab] = React.useState<'ios' | 'android'>('android');
 
-  // Custom interactive installer state variables
-  const [isSimulatingInstall, setIsSimulatingInstall] = useState(false);
-  const [installProgress, setInstallProgress] = useState(0);
-  const [installStepText, setInstallStepText] = useState('');
-
   React.useEffect(() => {
-    // Detect if already running in standalone mode (iOS or Android)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
                          (window.navigator as any).standalone === true;
     if (isStandalone) {
@@ -111,7 +71,6 @@ export default function SettingsScreen({ onLogout, onNavigate, onLock }: Setting
 
     const handleAppInstalled = () => {
       setIsInstalled(true);
-      localStorage.setItem('bitvera_pwa_installed', 'true');
       setDeferredPrompt(null);
     };
 
@@ -123,124 +82,35 @@ export default function SettingsScreen({ onLogout, onNavigate, onLock }: Setting
     };
   }, []);
 
-  const triggerFileDownload = (filename: string, content: string, contentType: string) => {
-    try {
-      const blob = new Blob([content], { type: contentType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error("Error generating download blob in sandboxed environment", e);
-    }
-  };
-
-  const runInstallSimulator = (platform: 'android' | 'ios') => {
-    setIsSimulatingInstall(true);
-    setInstallProgress(0);
-    
-    const steps = platform === 'android' ? [
-      { prg: 20, txt: "Initializing secure Android terminal container..." },
-      { prg: 45, txt: "Downloading localized cache ledgers & maps..." },
-      { prg: 75, txt: "Signing Android PKCS#7 security keys..." },
-      { prg: 100, txt: "Compilation ready! Launching file stream download..." }
-    ] : [
-      { prg: 20, txt: "Configuring premium iOS Web Clip attributes..." },
-      { prg: 50, txt: "Inserting offline geodesic navigation parameters..." },
-      { prg: 80, txt: "Constructing mobileconfig crypt-hash files..." },
-      { prg: 100, txt: "Configuration generated! Saving security profile download..." }
-    ];
-
-    let currentStepIdx = 0;
-    setInstallStepText(steps[0].txt);
-
-    const timer = setInterval(() => {
-      setInstallProgress(prev => {
-        const next = prev + 4;
-        if (next >= steps[currentStepIdx].prg) {
-          if (currentStepIdx < steps.length - 1) {
-            currentStepIdx++;
-            setInstallStepText(steps[currentStepIdx].txt);
-          }
-        }
-        if (next >= 100) {
-          clearInterval(timer);
-          setTimeout(() => {
-            // Trigger actual files download payload to satisfy download mandate!
-            if (platform === 'android') {
-              const apkMockHeader = "BITVERA_ANDROID_SECURE_REPRESENTATIVE_APP_v1.8.4\n" +
-                "===========================================================\n" +
-                "Build Type: Stable Production\n" +
-                "Security Enclave: Verified (SDAIA Compliant)\n" +
-                "Signature: sha256-f642a8b30e1f72a44bb\n\n" +
-                "Installation Guide:\n" +
-                "1. If prompted 'Blocked by Play Protect', click 'Install anyway'.\n" +
-                "2. Grant Camera and Location permissions for full offline route calculation.\n" +
-                "3. Authenticate with 'Password123' and enable Biometric Quick Unlock.";
-              triggerFileDownload("bitvera_secure_installer_v1.8.4.apk", apkMockHeader, "application/vnd.android.package-archive");
-            } else {
-              const profileMockHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n" +
-                "<plist version=\"1.0\">\n" +
-                "<dict>\n" +
-                "  <key>PayloadDisplayName</key>\n" +
-                "  <string>Bitvera Safe Terminal</string>\n" +
-                "  <key>PayloadIdentifier</key>\n" +
-                "  <string>com.bitvera.sales.pwa</string>\n" +
-                "  <key>PayloadType</key>\n" +
-                "  <string>Configuration</string>\n" +
-                "  <key>ConsentText</key>\n" +
-                "  <string>Install this to establish high-speed offline sales terminal caching.</string>\n" +
-                "</dict>\n" +
-                "</plist>";
-              triggerFileDownload("bitvera_ios_profile.mobileconfig", profileMockHeader, "application/x-apple-aspen-config");
-            }
-
-            setIsInstalled(true);
-            localStorage.setItem('bitvera_pwa_installed', 'true');
-            setIsSimulatingInstall(false);
-            setSaveNotification(t("Bitvera app installed and configured successfully."));
-            setTimeout(() => setSaveNotification(''), 3000);
-          }, 800);
-          return 100;
-        }
-        return next;
-      });
-    }, 100);
-  };
-
   const handleInstallClick = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      console.log(`[Bitvera Installer] User choice outcome: ${outcome}`);
       if (outcome === 'accepted') {
         setIsInstalled(true);
-        localStorage.setItem('bitvera_pwa_installed', 'true');
         setDeferredPrompt(null);
       }
-    } else {
-      // Trigger our robust interactive install simulator with real physical browser download blobs!
-      runInstallSimulator('android');
     }
   };
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!oldPassword || !newPassword || !confirmPassword) {
-      alert('Please fill in password details.');
+      alert(t("Please fill in password details."));
       return;
     }
     if (newPassword !== confirmPassword) {
-      alert('New password and Confirmation password do not match.');
+      alert(t("New password and Confirmation password do not match."));
       return;
     }
 
-    setSaveNotification('Credentials updated successfully. Security tokens synced.');
+    const res = await changePassword(oldPassword, newPassword, confirmPassword);
+    if (!res.success) {
+      alert(res.error || t("Password change failed."));
+      return;
+    }
+
+    setSaveNotification(t("Password updated successfully. Session updated."));
     setOldPassword('');
     setNewPassword('');
     setConfirmPassword('');
@@ -484,48 +354,27 @@ export default function SettingsScreen({ onLogout, onNavigate, onLock }: Setting
             </div>
 
             {/* Instruction content block */}
-            {isSimulatingInstall ? (
-              <div className="bg-slate-900/90 rounded-xl p-4 border border-emerald-500/30 space-y-3 shadow-inner">
-                <div className="flex items-center justify-between font-mono text-[10px] text-emerald-400">
-                  <span className="animate-pulse flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                    {t("COMPILING SECURE SANDBOX CONTAINER...")}
-                  </span>
-                  <span className="font-extrabold text-[#10b981]">{installProgress}%</span>
-                </div>
-                
-                {/* Progress Bar Track */}
-                <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-white/5 relative">
-                  <div 
-                    className="h-full bg-gradient-to-r from-emerald-500 via-indigo-500 to-emerald-600 rounded-full transition-all duration-150 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
-                    style={{ width: `${installProgress}%` }}
-                  />
-                </div>
-
-                <div className="p-2 bg-slate-950/60 rounded-lg border border-white/5">
-                  <p className="text-[10px] text-slate-300 font-mono text-center leading-normal">
-                    {installStepText}
-                  </p>
-                </div>
-              </div>
-            ) : activeInstructionTab === 'android' ? (
+            {activeInstructionTab === 'android' ? (
               <div className="space-y-3">
                 <div className="bg-slate-900/60 p-3.5 rounded-xl border border-white/5 space-y-1 text-xs">
                   <h4 className="font-bold text-white font-mono text-[11px]">{t("How to Install on Android / Chrome")}</h4>
                   <p className="text-slate-400 leading-relaxed text-[11px]">
-                    {t("Tap the \"Install Client APK\" button below to retrieve the standalone security bundle, or use the browser option \"Add to Home Screen\".")}
+                    {deferredPrompt
+                      ? t("Tap the button below to install Bitvera Sales directly as a Progressive Web App.")
+                      : t("In Google Chrome, tap the menu (⋮) and select \"Install app\" or \"Add to Home screen\". For native Android development, build the release APK via Android Studio in the /android directory.")}
                   </p>
                 </div>
 
-                {/* Android Trigger install button */}
-                <button
-                  type="button"
-                  onClick={handleInstallClick}
-                  className="w-full py-3.5 rounded-xl text-xs font-mono font-bold uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer transition-all bg-gradient-to-r from-emerald-500 to-indigo-600 text-white border border-white/10 hover:shadow-[0_0_15px_rgba(16,185,129,0.25)] hover:from-emerald-400 hover:to-indigo-500 active:scale-98 select-none"
-                >
-                  <Download className="w-4 h-4 animate-bounce" />
-                  {deferredPrompt ? t("Install Chrome App") : t("Install Client APK (Android)")}
-                </button>
+                {deferredPrompt && (
+                  <button
+                    type="button"
+                    onClick={handleInstallClick}
+                    className="w-full py-3.5 rounded-xl text-xs font-mono font-bold uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer transition-all bg-gradient-to-r from-emerald-500 to-indigo-600 text-white border border-white/10 hover:shadow-[0_0_15px_rgba(16,185,129,0.25)] hover:from-emerald-400 hover:to-indigo-500 active:scale-98 select-none"
+                  >
+                    <Download className="w-4 h-4 animate-bounce" />
+                    {t("Install PWA App")}
+                  </button>
+                )}
               </div>
             ) : (
               /* Apple instructions */
@@ -538,7 +387,7 @@ export default function SettingsScreen({ onLogout, onNavigate, onLock }: Setting
                   <ol className="space-y-2 text-[11px] text-slate-300 font-medium list-none p-0 m-0">
                     <li className="flex items-start gap-2">
                       <span className="text-indigo-400 font-mono font-bold">01.</span>
-                      <span>{t("1. Tap the Share icon in Safari (looks like a square with an arrow pointing up).")}</span>
+                      <span>{t("1. Tap the Share icon in Safari (square with arrow).")}</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-indigo-400 font-mono font-bold">02.</span>
@@ -546,20 +395,10 @@ export default function SettingsScreen({ onLogout, onNavigate, onLock }: Setting
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-indigo-400 font-mono font-bold">03.</span>
-                      <span>{t("3. Customize the name and tap \"Add\" at the top-right.")}</span>
+                      <span>{t("3. Tap \"Add\" in the top right to complete.")}</span>
                     </li>
                   </ol>
                 </div>
-
-                {/* iOS Trigger install and profile download */}
-                <button
-                  type="button"
-                  onClick={() => runInstallSimulator('ios')}
-                  className="w-full py-3.5 rounded-xl text-xs font-mono font-bold uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer transition-all bg-gradient-to-r from-indigo-600 to-indigo-700 text-white border border-white/10 hover:from-indigo-500 hover:to-indigo-600 hover:shadow-[0_0_15px_rgba(99,102,241,0.2)] active:scale-98"
-                >
-                  <Download className="w-4 h-4 animate-bounce" />
-                  {t("Retrieve iOS Web Profile")}
-                </button>
               </div>
             )}
           </div>
@@ -578,15 +417,18 @@ export default function SettingsScreen({ onLogout, onNavigate, onLock }: Setting
             <select
               value={language}
               onChange={(e) => {
-                setLanguage(e.target.value);
-                setSaveNotification(`Language modified to ${e.target.value}. Reloading tables.`);
+                setLanguage(e.target.value as LanguageType);
+                setSaveNotification(t("Language updated."));
                 setTimeout(() => setSaveNotification(''), 3000);
               }}
               className="w-full pl-3 pr-10 py-2.5 bg-slate-900 border border-white/10 rounded-xl text-xs font-mono font-bold text-white appearance-none cursor-pointer focus:border-indigo-500"
             >
-              <option value="English (US)">English (US)</option>
-              <option value="Arabic (KSA) • العربية">Arabic (KSA) • العربية</option>
-              <option value="French">{t("French")}</option>
+              <option value="en">English (US)</option>
+              <option value="ar">العربية (KSA)</option>
+              <option value="de">Deutsch (DE)</option>
+              <option value="es">Español (ES)</option>
+              <option value="zh">中文 (ZH)</option>
+              <option value="fr">Français (FR)</option>
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-indigo-400">
               <ChevronDown className="w-4 h-4" />

@@ -1,7 +1,9 @@
 import { useLanguage } from '../context/LanguageContext';
 import { useState } from 'react';
-import { MapPin, CheckCircle, Navigation, Play, AlertCircle, RefreshCw } from 'lucide-react';
+import { MapPin, CheckCircle, Navigation, Play, AlertCircle, RefreshCw, Crosshair } from 'lucide-react';
 import { Visit, ViewState } from '../types';
+import { getCurrentDeviceLocation, verifyCustomerGeofence, GpsCoordinates } from '../services/location';
+import { logAuditEvent } from '../services/audit';
 
 interface RouteScreenProps {
   visits: Visit[];
@@ -18,7 +20,9 @@ export default function RouteScreen({
 }: RouteScreenProps) {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'completed'>('all');
-  const [gpsSimulatedOk, setGpsSimulatedOk] = useState(false);
+  const [locatingVisitId, setLocatingVisitId] = useState<string | null>(null);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [visitDistances, setVisitDistances] = useState<Record<string, { distanceKm: number; isWithin: boolean; accuracy: number }>>({});
 
   // Filter logic
   const filteredVisits = visits.filter((v) => {
@@ -30,17 +34,66 @@ export default function RouteScreen({
 
   const completedCount = visits.filter((v) => v.status === 'COMPLETED').length;
 
-  const handleSimulateGPS = (visitId: string) => {
-    setGpsSimulatedOk(true);
-  };
+  // Real GPS check-in & geofence resolution
+  const handleAcquireLocationAndCheckIn = async (visit: Visit) => {
+    setLocatingVisitId(visit.id);
+    setGpsError(null);
 
-  const handleStartVisit = (visit: Visit) => {
+    const locationResult = await getCurrentDeviceLocation(12000);
+    setLocatingVisitId(null);
+
+    if (!locationResult.success || !locationResult.coords) {
+      setGpsError(locationResult.error || 'Failed to acquire device location.');
+      return;
+    }
+
+    const coords: GpsCoordinates = locationResult.coords;
+    const geoResult = verifyCustomerGeofence(
+      coords,
+      visit.customer.lat,
+      visit.customer.lng,
+      visit.geofenceM || 200
+    );
+
+    setVisitDistances(prev => ({
+      ...prev,
+      [visit.id]: {
+        distanceKm: geoResult.distanceKm,
+        isWithin: geoResult.isWithinGeofence,
+        accuracy: coords.accuracy
+      }
+    }));
+
+    if (!geoResult.accuracyAcceptable) {
+      setGpsError(`GPS accuracy is insufficient (±${coords.accuracy}m). Please move outdoors for stronger satellite lock.`);
+      return;
+    }
+
+    if (!geoResult.isWithinGeofence) {
+      setGpsError(`Outside designated geofence! Detected ${geoResult.distanceKm.toFixed(2)} km away. Maximum allowed check-in radius is ${visit.geofenceM || 200} meters.`);
+      return;
+    }
+
+    // Inside geofence: unlock check-in
+    await logAuditEvent('VISIT_CHECKIN', {
+      visitId: visit.id,
+      customerId: visit.customer.id,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      accuracy: coords.accuracy,
+      distanceKm: geoResult.distanceKm
+    });
+
     onUpdateVisitStatus(visit.id, 'IN_PROGRESS');
   };
 
-  const handleCompleteVisitNoOrder = (visit: Visit) => {
+  const handleStartVisitDirect = (visit: Visit) => {
+    onUpdateVisitStatus(visit.id, 'IN_PROGRESS');
+  };
+
+  const handleCompleteVisitNoOrder = async (visit: Visit) => {
+    await logAuditEvent('VISIT_CHECKOUT', { visitId: visit.id, customerId: visit.customer.id, orderCreated: false });
     onUpdateVisitStatus(visit.id, 'COMPLETED');
-    setGpsSimulatedOk(false);
   };
 
   const handleCreateOrder = (visit: Visit) => {
@@ -49,7 +102,7 @@ export default function RouteScreen({
   };
 
   return (
-    <div className="space-y-6 pb-24 font-sans relative z-10">
+    <div className="space-y-6 pb-24 font-sans relative z-10 text-left">
       
       {/* Route Telemetry Header */}
       <div className="flex justify-between items-start bg-slate-900/40 border border-white/10 rounded-2xl p-4 shadow-[0_4px_25px_rgba(0,0,0,0.3)]">
@@ -59,9 +112,17 @@ export default function RouteScreen({
           <p className="text-xs font-semibold text-slate-400 mt-0.5">{t("Riyadh North Sector")} • {visits.length} {t("Visits Assigned")}</p>
         </div>
         <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-mono font-bold shadow-[0_0_12px_rgba(16,185,129,0.2)]">
-          {completedCount} / {visits.length} {t("SYNCED TERMINAL")}
+          {completedCount} / {visits.length} {t("COMPLETED")}
         </span>
       </div>
+
+      {/* GPS Error Alert */}
+      {gpsError && (
+        <div className="bg-rose-500/10 border border-rose-500/25 text-rose-400 p-3 rounded-xl text-xs flex items-start gap-2.5 font-mono shadow-md">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+          <span>{gpsError}</span>
+        </div>
+      )}
 
       {/* Cyber Glass Tabs Navigation */}
       <div className="grid grid-cols-3 bg-slate-950/60 p-1 rounded-xl border border-white/10 shadow-inner">
@@ -102,12 +163,14 @@ export default function RouteScreen({
         {filteredVisits.length === 0 ? (
           <div className="text-center py-10 bg-slate-900/20 border border-white/5 rounded-xl">
             <CheckCircle className="w-8 h-8 text-slate-600 mx-auto mb-2 animate-pulse" />
-            <p className="text-sm text-slate-400 font-mono">{t("No telemetry logs found in this module.")}</p>
+            <p className="text-sm text-slate-400 font-mono">{t("No route stops found in this filter.")}</p>
           </div>
         ) : (
           filteredVisits.map((visit) => {
             const isCompleted = visit.status === 'COMPLETED';
             const isCheckingIn = visit.status === 'IN_PROGRESS';
+            const distanceInfo = visitDistances[visit.id];
+            const isLocatingThis = locatingVisitId === visit.id;
 
             return (
               <div
@@ -134,53 +197,48 @@ export default function RouteScreen({
                     {isCompleted ? (
                       <>
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                        ✓ {t("Synced & Approved")}
+                        ✓ {t("Completed & Synced")}
                       </>
                     ) : isCheckingIn ? (
                       <>
                         <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
-                        📡 {t("ACTIVE LINK IN_PROGRESS")}
+                        📡 {t("CHECKED IN // IN PROGRESS")}
                       </>
                     ) : (
                       <>
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                        🕰️ {t("ETA")} • {visit.time}
+                        🕰️ {t("Scheduled ETA")} • {visit.time}
                       </>
                     )}
                   </span>
-                  <span className="text-[10px] text-slate-500">CUS-{visit.customer.id.replace('CUS-', '')}</span>
+                  <span className="text-[10px] text-slate-500">{visit.customer.id}</span>
                 </div>
 
                 <div className="p-4 space-y-4">
                   <div>
                     <h3 className="text-base font-bold text-white">{visit.customer.name}</h3>
-                    {!isCompleted && (
-                      <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                        Riyadh Sector W-1 • {visit.customer.buildingNumber}, King Abdullah Branch Rd, Riyadh
-                      </p>
-                    )}
+                    <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1.5 font-mono">
+                      <MapPin className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                      GPS: {visit.customer.lat.toFixed(5)}, {visit.customer.lng.toFixed(5)} • Bldg {visit.customer.buildingNumber}
+                    </p>
                   </div>
 
                   {/* Geofence Info box for active/pending item */}
                   {!isCompleted && (
-                    <div className="bg-slate-900/50 border border-white/5 rounded-xl p-3 space-y-2.5 font-mono">
+                    <div className="bg-slate-900/50 border border-white/5 rounded-xl p-3 space-y-2 font-mono">
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500 uppercase tracking-widest text-[9px]">{t("Transmitter distance")}</span>
-                        <span className={`font-bold ${visit.distanceKm && visit.distanceKm < 0.2 || gpsSimulatedOk ? 'text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.2)]' : 'text-red-400'}`}>
-                          {gpsSimulatedOk ? t("0.04 km (LOCK_ACQUIRED)") : `${visit.distanceKm} km`}
-                        </span>
+                        <span className="text-slate-500 uppercase tracking-widest text-[9px]">{t("Geodesic Boundary")}</span>
+                        <span className="font-bold text-white">{visit.geofenceM || 200} {t("meters")}</span>
                       </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500 uppercase tracking-widest text-[9px]">{t("Active safety boundary")}</span>
-                        <span className="font-bold text-white">{visit.geofenceM} {t("meters")}</span>
-                      </div>
-
-                      {/* Diagnostic Alert if too far */}
-                      {!gpsSimulatedOk && visit.distanceKm && visit.distanceKm >= 0.2 && !isCheckingIn && (
-                        <div className="bg-amber-950/30 border border-amber-500/20 text-amber-300 p-2.5 rounded-lg text-[11px] flex items-start gap-2 leading-relaxed">
-                          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                          <span>{t("Operator transmitter detected outside safety geodesic boundary code. Initialize Simulated GPS fallback to authenticate.")}</span>
+                      
+                      {distanceInfo && (
+                        <div className="flex justify-between items-center text-xs pt-1 border-t border-white/5">
+                          <span className="text-slate-500 uppercase tracking-widest text-[9px]">{t("Measured Distance")}</span>
+                          <span className={`font-bold ${distanceInfo.isWithin ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {distanceInfo.distanceKm < 1 
+                              ? `${Math.round(distanceInfo.distanceKm * 1000)} m (${distanceInfo.isWithin ? 'IN RANGE' : 'OUTSIDE'})` 
+                              : `${distanceInfo.distanceKm.toFixed(2)} km (OUTSIDE)`}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -196,45 +254,50 @@ export default function RouteScreen({
                         }}
                         className="w-full py-2.5 border border-emerald-500/30 rounded-xl text-xs font-bold text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/15 cursor-pointer transition-all flex items-center justify-center gap-1.5"
                       >
-                        <CheckCircle className="w-4 h-4" />{t("Review Signed Matrix Invoice")}</button>
+                        <CheckCircle className="w-4 h-4" />{t("Review Customer History")}
+                      </button>
                     ) : isCheckingIn ? (
                       <div className="w-full flex gap-2">
                         <button
                           onClick={() => handleCreateOrder(visit)}
                           className="flex-1 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1 cursor-pointer border border-white/10"
                         >
-                          <Play className="w-3.5 h-3.5" />{t("Launch Order Panel")}</button>
+                          <Play className="w-3.5 h-3.5" />{t("Create Order")}
+                        </button>
                         <button
                           onClick={() => handleCompleteVisitNoOrder(visit)}
                           className="flex-1 py-2.5 border border-white/10 hover:bg-white/5 text-slate-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
                         >
-                          {t("Flag No Order")}
+                          {t("Complete (No Sale)")}
                         </button>
                       </div>
                     ) : (
                       <div className="w-full flex gap-2">
                         <button
-                          disabled={!gpsSimulatedOk && visit.distanceKm !== undefined && visit.distanceKm >= 0.2}
-                          onClick={() => handleStartVisit(visit)}
-                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md select-none border border-white/10 ${
-                            !gpsSimulatedOk && visit.distanceKm !== undefined && visit.distanceKm >= 0.2
-                              ? 'bg-slate-900 text-slate-600 border-white/5 cursor-not-allowed'
-                              : 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer active:scale-95'
-                          }`}
+                          onClick={() => handleAcquireLocationAndCheckIn(visit)}
+                          disabled={isLocatingThis}
+                          className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md select-none border border-white/10 bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer active:scale-95 disabled:opacity-50"
                         >
-                          <Navigation className="w-3.5 h-3.5" />{t("Unlock Visit")}</button>
+                          {isLocatingThis ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              <span>{t("Verifying GPS Lock...")}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Navigation className="w-3.5 h-3.5" />
+                              <span>{t("Check In (GPS Verify)")}</span>
+                            </>
+                          )}
+                        </button>
 
                         <button
-                          onClick={() => handleSimulateGPS(visit.id)}
-                          className={`px-3.5 py-2.5 border rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer font-mono ${
-                            gpsSimulatedOk
-                              ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 shadow-[0_0_12px_rgba(99,102,241,0.2)]'
-                              : 'bg-slate-900/60 border-white/10 hover:bg-slate-900 text-slate-300'
-                          }`}
-                          title={t("Simulate representative presence at GPS coordinate")}
+                          onClick={() => handleStartVisitDirect(visit)}
+                          className="px-3.5 py-2.5 border rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer font-mono bg-slate-900 border-white/10 hover:bg-slate-800 text-slate-300"
+                          title={t("Manual check-in override for authorized field reps")}
                         >
-                          <RefreshCw className={`w-3.5 h-3.5 ${gpsSimulatedOk ? '' : 'animate-pulse text-indigo-400'}`} />
-                          {gpsSimulatedOk ? t("LOC_SYNCED") : t("Simulate GPS")}
+                          <Crosshair className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>{t("Manual")}</span>
                         </button>
                       </div>
                     )}
