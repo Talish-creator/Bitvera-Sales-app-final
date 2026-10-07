@@ -1,10 +1,12 @@
 import { useLanguage } from '../context/LanguageContext';
 import { useState, useEffect } from 'react';
-import { X, Printer, Download, Check, FileText } from 'lucide-react';
+import { X, Printer, Download, Check, FileText, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { ViewState } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
 import { generateZatcaQrDataUrl } from '../services/zatca';
 import { downloadInvoicePdfFile } from '../services/pdf';
+import { syncSingleRecord } from '../services/erpnextIntegration';
+import { getOrders } from '../services/storage';
 
 interface InvoiceViewerProps {
   invoiceData: {
@@ -35,9 +37,39 @@ export default function InvoiceViewer({
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isPrinted, setIsPrinted] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [syncingOrder, setSyncingOrder] = useState(false);
+  const [syncNotice, setSyncNotice] = useState('');
+  const [erpDocId, setErpDocId] = useState<string | undefined>(() => {
+    try {
+      const orders = getOrders();
+      const match = orders.find(o => o.id === (invoiceData?.id || 'SINV-2026-04122'));
+      return (match as any)?.erpnext_id;
+    } catch {
+      return undefined;
+    }
+  });
 
   // Defaults fallback
   const idStr = invoiceData?.id || 'SINV-2026-04122';
+
+  const handleSyncOrderToErp = async () => {
+    setSyncingOrder(true);
+    setSyncNotice(t("Connecting to ERPNext Gateway..."));
+    try {
+      const res = await syncSingleRecord('Order', idStr);
+      if (res.success) {
+        setErpDocId(res.erpnext_id);
+        setSyncNotice(`${t("Order successfully synchronized with ERPNext! Document:")} ${res.erpnext_id}`);
+      } else {
+        setSyncNotice(`${t("ERPNext Sync Failed:")} ${res.error}`);
+      }
+    } catch (err: any) {
+      setSyncNotice(`Error: ${err.message}`);
+    } finally {
+      setSyncingOrder(false);
+      setTimeout(() => setSyncNotice(''), 4500);
+    }
+  };
   const dateStr = invoiceData?.date || new Date().toISOString().split('T')[0];
   const subtotal = invoiceData?.subtotal || 395.00;
   const tax = invoiceData?.tax || 59.25;
@@ -123,7 +155,15 @@ export default function InvoiceViewer({
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleSyncOrderToErp}
+            disabled={syncingOrder}
+            className="p-2 px-3 rounded-xl bg-slate-900 border border-white/10 hover:border-indigo-500/40 text-slate-200 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-mono font-bold disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${syncingOrder ? 'animate-spin' : ''}`} />
+            {erpDocId ? `ERP: ${erpDocId}` : t("Sync to ERPNext")}
+          </button>
           <button
             onClick={handleDownload}
             className="p-2 px-3 rounded-xl bg-slate-900 border border-white/10 hover:border-emerald-500/40 text-slate-200 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-mono font-bold"
@@ -140,6 +180,13 @@ export default function InvoiceViewer({
           </button>
         </div>
       </div>
+
+      {syncNotice && (
+        <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs font-mono font-bold text-indigo-300 flex items-center gap-2 animate-fadeIn no-print">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{syncNotice}</span>
+        </div>
+      )}
 
       {/* The Paper A4 Invoice Mock card */}
       <div id="invoice-printable-area" className="bg-white border text-slate-900 border-slate-300 rounded-2xl shadow-2xl overflow-hidden p-6 md:p-10 font-sans max-w-2xl mx-auto space-y-6 leading-relaxed relative">

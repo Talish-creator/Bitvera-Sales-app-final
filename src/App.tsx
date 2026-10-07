@@ -45,11 +45,15 @@ import DocumentCenterScreen from './components/DocumentCenterScreen';
 import SyncCenterScreen from './components/SyncCenterScreen';
 import AdminUsersScreen from './components/AdminUsersScreen';
 import AuditCenterScreen from './components/AuditCenterScreen';
+import ErpSettingsScreen from './components/ErpSettingsScreen';
 
 // Enterprise Modals & Quick Action Overlays
 import CommandPaletteModal from './components/CommandPaletteModal';
 import AiAssistantModal from './components/AiAssistantModal';
 import MobileQuickActions from './components/MobileQuickActions';
+import ErpStatusModal from './components/ErpStatusModal';
+import SyncModal from './components/SyncModal';
+import { fetchErpConfig } from './services/erpnextIntegration';
 
 // Persistent icons
 import { 
@@ -70,6 +74,9 @@ export default function App() {
   // Global Modals
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
+  const [isErpStatusModalOpen, setIsErpStatusModalOpen] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isErpConnected, setIsErpConnected] = useState(false);
 
   // Authoritative persistent state loaded from storage
   const [products, setProducts] = useState<Product[]>(() => getProducts());
@@ -105,6 +112,18 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Check ERPNext connection status
+  useEffect(() => {
+    const checkErp = () => {
+      fetchErpConfig().then(cfg => {
+        setIsErpConnected(cfg.connectionStatus === 'CONNECTED');
+      }).catch(() => setIsErpConnected(false));
+    };
+    checkErp();
+    const iv = setInterval(checkErp, 25000);
+    return () => clearInterval(iv);
+  }, [currentView, isErpStatusModalOpen, isSyncModalOpen]);
 
   // Selected payment checkout details
   const [activeCustomerForOrder, setActiveCustomerForOrder] = useState({ id: 'TC-1100', name: 'test Customers' });
@@ -294,6 +313,20 @@ export default function App() {
               <Search className="w-4 h-4" />
             </button>
 
+            {/* ERPNext Gateway Badge */}
+            <button
+              onClick={() => setIsErpStatusModalOpen(true)}
+              className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                isErpConnected 
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25 hover:bg-emerald-500/20' 
+                  : 'bg-slate-800/80 text-slate-400 border-white/10 hover:bg-slate-700'
+              }`}
+              title={isErpConnected ? t("ERPNext: Connected") : t("ERPNext: Disconnected")}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${isErpConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+              <span className="hidden sm:inline">ERP</span>
+            </button>
+
             {/* AI Assistant Button */}
             <button
               onClick={() => setIsAiAssistantOpen(true)}
@@ -438,6 +471,12 @@ export default function App() {
 
         {currentView === 'sync_center' && (
           <SyncCenterScreen
+            onNavigate={setCurrentView}
+          />
+        )}
+
+        {currentView === 'erp_settings' && (
+          <ErpSettingsScreen
             onNavigate={setCurrentView}
           />
         )}
@@ -616,6 +655,21 @@ export default function App() {
           </div>
         </nav>
       )}
+
+      {/* ERP Status Quick Modal */}
+      <ErpStatusModal
+        isOpen={isErpStatusModalOpen}
+        onClose={() => setIsErpStatusModalOpen(false)}
+        onNavigate={setCurrentView}
+        onOpenSyncModal={() => setIsSyncModalOpen(true)}
+      />
+
+      {/* Controlled Synchronization Modal */}
+      <SyncModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        onSyncComplete={() => {}}
+      />
     </div>
   );
 }

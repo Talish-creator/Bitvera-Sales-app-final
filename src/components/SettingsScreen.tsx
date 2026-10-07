@@ -1,6 +1,6 @@
 import { useLanguage, LanguageType } from '../context/LanguageContext';
 import React, { useState } from 'react';
-import { ArrowLeft, User, Shield, Key, Sliders, Globe, Star, ShoppingBag, Landmark, Utensils, Tag, LogOut, CheckCircle2, ChevronDown, Sun, Moon, Smartphone, Download, Info, Fingerprint, Lock } from 'lucide-react';
+import { ArrowLeft, User, Shield, Key, Sliders, Globe, Star, ShoppingBag, Landmark, Utensils, Tag, LogOut, CheckCircle2, ChevronDown, Sun, Moon, Smartphone, Download, Info, Fingerprint, Lock, Server, RefreshCw } from 'lucide-react';
 import { ViewState } from '../types';
 import { useCurrency, SUPPORTED_CURRENCIES } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
@@ -159,6 +159,38 @@ export default function SettingsScreen({ onLogout, onNavigate, onLock }: Setting
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[8px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-widest animate-pulse">
               <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full inline-block"></span>{t("ACTIVE FIELD AGENT")}</span>
           </div>
+        </div>
+      </div>
+
+      {/* Card: ERPNext Integration & Synchronization */}
+      <div className="bg-slate-950/60 border border-white/10 rounded-2xl p-5 space-y-3 shadow-lg backdrop-blur-md">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+            <Server className="w-4 h-4 text-indigo-400" />
+            {t("ERPNext Integration & Sync Gateway")}
+          </h3>
+          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+            {t("Enterprise Tier")}
+          </span>
+        </div>
+        <p className="text-xs text-slate-300 leading-relaxed">
+          {t("Configure REST API endpoint, server-side secrets, company and warehouse defaults, and controlled synchronization directions.")}
+        </p>
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={() => onNavigate('erp_settings')}
+            className="flex-1 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-mono font-bold uppercase tracking-wide transition-all cursor-pointer shadow-md flex items-center justify-center gap-2"
+          >
+            <Sliders className="w-4 h-4" />
+            {t("Configure ERPNext Integration")}
+          </button>
+          <button
+            onClick={() => onNavigate('sync_center')}
+            className="py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-white/10 rounded-xl text-xs font-mono font-bold uppercase tracking-wide transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <RefreshCw className="w-4 h-4 text-cyan-400" />
+            {t("Sync Center")}
+          </button>
         </div>
       </div>
 

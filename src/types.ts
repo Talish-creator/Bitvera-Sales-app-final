@@ -323,5 +323,6 @@ export type ViewState =
   | 'expenses'
   | 'document_center'
   | 'sync_center'
+  | 'erp_settings'
   | 'admin_users'
   | 'audit_center';

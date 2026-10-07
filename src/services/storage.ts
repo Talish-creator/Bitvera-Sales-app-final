@@ -424,6 +424,16 @@ export function updateVisitPersistent(id: string, updates: Partial<Visit>): void
   saveVisits(updated);
 }
 
+export function updateCustomerPersistent(customer: Customer): void {
+  const existing = getCustomers();
+  const updated = existing.map(c => c.id === customer.id ? customer : c);
+  saveCustomers(updated);
+}
+
+export const getStoredCustomers = getCustomers;
+export const getStoredOrders = getOrders;
+export const getStoredProducts = getProducts;
+
 // ---------------------------------------------------------------------------
 // PRODUCT STOCK UPDATE HELPER
 // ---------------------------------------------------------------------------

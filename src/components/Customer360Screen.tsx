@@ -2,11 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { 
   ArrowLeft, Users, Phone, Mail, MapPin, Building2, CreditCard, 
   TrendingUp, Calendar, Clock, ShoppingCart, CheckCircle2, AlertTriangle, 
-  FileText, ShieldCheck, Plus, DollarSign, ChevronRight, Search
+  FileText, ShieldCheck, Plus, DollarSign, ChevronRight, Search, RefreshCw 
 } from 'lucide-react';
 import { ViewState, Customer } from '../types';
 import { getCustomers } from '../services/storage';
 import { getCustomer360Data } from '../services/customer360';
+import { syncSingleRecord } from '../services/erpnextIntegration';
 import { useLanguage } from '../context/LanguageContext';
 import { useCurrency } from '../context/CurrencyContext';
 
@@ -31,10 +32,30 @@ export default function Customer360Screen({
   });
 
   const [searchFilter, setSearchFilter] = useState('');
+  const [syncingCustomer, setSyncingCustomer] = useState(false);
+  const [syncNotice, setSyncNotice] = useState('');
 
   const summary = useMemo(() => {
     return getCustomer360Data(selectedCustomerId);
-  }, [selectedCustomerId]);
+  }, [selectedCustomerId, syncingCustomer]);
+
+  const handleSyncCustomerToErp = async () => {
+    setSyncingCustomer(true);
+    setSyncNotice(t("Communicating with ERPNext Gateway..."));
+    try {
+      const res = await syncSingleRecord('Customer', selectedCustomerId);
+      if (res.success) {
+        setSyncNotice(`${t("Customer synchronized successfully! ERP ID:")} ${res.erpnext_id}`);
+      } else {
+        setSyncNotice(`${t("ERPNext Sync Failed:")} ${res.error}`);
+      }
+    } catch (err: any) {
+      setSyncNotice(`Error: ${err.message}`);
+    } finally {
+      setSyncingCustomer(false);
+      setTimeout(() => setSyncNotice(''), 4500);
+    }
+  };
 
   if (!summary) {
     return (
@@ -112,7 +133,7 @@ export default function Customer360Screen({
           </div>
 
           {/* Quick Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => {
                 if (onSelectCustomerForOrder) onSelectCustomerForOrder(customer.id, customer.name);
@@ -130,7 +151,41 @@ export default function Customer360Screen({
               <DollarSign className="w-4 h-4 text-emerald-400" />
               {t("Collect Payment")}
             </button>
+            <button
+              onClick={handleSyncCustomerToErp}
+              disabled={syncingCustomer}
+              className="px-3 py-2 bg-slate-900 border border-white/10 hover:border-indigo-500/40 text-slate-300 hover:text-white text-xs font-bold font-mono uppercase rounded-xl flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 text-indigo-400 ${syncingCustomer ? 'animate-spin' : ''}`} />
+              {(customer as any).erpnext_id ? t("Re-Sync ERP") : t("Sync to ERPNext")}
+            </button>
           </div>
+        </div>
+
+        {syncNotice && (
+          <div className="mt-3 p-2.5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs font-mono font-bold text-indigo-300 flex items-center gap-2 animate-fadeIn">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{syncNotice}</span>
+          </div>
+        )}
+
+        {/* ERP Integration Metadata Pill */}
+        <div className="mt-3 pt-3 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">{t("ERPNext Sync:")}</span>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+              (customer as any).erpnext_id
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                : 'bg-slate-800 text-slate-400 border border-white/10'
+            }`}>
+              {(customer as any).erpnext_id ? `SYNCED • ${(customer as any).erpnext_id}` : 'NOT SYNCED'}
+            </span>
+          </div>
+          {(customer as any).last_synced_at && (
+            <span className="text-slate-500 text-[10px]">
+              {t("Last Synced:")} {new Date((customer as any).last_synced_at).toLocaleString()}
+            </span>
+          )}
         </div>
 
         {/* Contact Badges Row */}

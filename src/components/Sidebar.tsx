@@ -4,7 +4,7 @@ import {
   X, Home, User, RefreshCw, Settings, Info, LogOut, 
   LayoutDashboard, Truck, Compass, Users, TrendingUp, 
   CheckSquare, DollarSign, TableProperties, Calendar, 
-  CheckCircle2, AreaChart, FileText, Shield, ShieldCheck 
+  CheckCircle2, AreaChart, FileText, Shield, ShieldCheck, Server 
 } from 'lucide-react';
 import { syncPendingQueue, getQueueStatus } from '../services/offlineQueue';
 import { ViewState } from '../types';
@@ -169,6 +169,12 @@ export default function Sidebar({ isOpen, onClose, onNavigate, onLogout, isDark 
             icon={<RefreshCw className="w-4 h-4 text-cyan-400" />} 
             label={t("Sync Gateway")} 
             onClick={() => navigateTo('sync_center')} 
+            isDark={isDark}
+          />
+          <SidebarItem 
+            icon={<Server className="w-4 h-4 text-indigo-400" />} 
+            label={t("ERPNext Integration")} 
+            onClick={() => navigateTo('erp_settings')} 
             isDark={isDark}
           />
           <SidebarItem 
